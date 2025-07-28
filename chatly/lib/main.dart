@@ -1,5 +1,4 @@
-// main.dart
-
+import 'package:chatly/screens/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 // AuthPage'inizi doğru yoldan import ettiğinizden emin olun.
@@ -29,21 +28,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      // Uygulamanın başlığı
-      title: 'Flutter Firebase Auth',
-
-      // Uygulamanın genel temasır
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity
-            .adaptivePlatformDensity, // Platforma göre görsel yoğunluğu ayarlar
-      ),
-
-      // Uygulamanın başlangıç ekranı olarak AuthPage'i ayarlayın.
-      // Bu sayfa, kullanıcının oturum açma durumuna göre giriş butonlarını veya
-      // hoş geldiniz mesajını gösterecektir.
-      home: const AuthPage(),
-    );
+    return const SplashScreen();
   }
 }
