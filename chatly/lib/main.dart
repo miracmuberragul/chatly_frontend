@@ -28,6 +28,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SplashScreen();
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Chatly',
+      home: const SplashScreen(),
+    );
   }
 }

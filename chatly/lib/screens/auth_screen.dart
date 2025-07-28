@@ -9,7 +9,6 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   bool _isLogin = true;
-
   final _formKey = GlobalKey<FormState>();
 
   String username = '';
