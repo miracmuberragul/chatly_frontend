@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 // AuthPage'inizi doğru yoldan import ettiğinizden emin olun.
 // Eğer AuthPage, lib/services/auth_page.dart konumundaysa, bu import doğrudur.
 import 'package:chatly/services/auth_page.dart';
+import 'package:chatly/screens/messages_page.dart';
 
 // Firebase yapılandırma dosyası. Bu dosya, `flutterfire configure` komutuyla otomatik olarak oluşturulur.
 // Projenizde yoksa veya güncel değilse bu komutu çalıştırmanız gerekir.
@@ -31,7 +32,11 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Chatly',
-      home: const SplashScreen(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const SplashScreen(),
+        '/messages': (context) => const MessagesPage(),
+      },
     );
   }
 }

@@ -82,7 +82,6 @@ class AuthPage {
       final user = userCredential.user;
 
       if (user != null) {
-        // Save user details to Firestore
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'uid': user.uid,
           'email': user.email,
@@ -90,6 +89,11 @@ class AuthPage {
           'createdAt': FieldValue.serverTimestamp(),
         });
         debugPrint('New user signed up with email: ${user.email}');
+
+        // ✅ Yönlendirme
+        if (context.mounted) {
+          Navigator.pushReplacementNamed(context, '/messages');
+        }
       }
     } on FirebaseAuthException catch (e) {
       debugPrint('Firebase Auth Error (Sign Up): ${e.code} - ${e.message}');
@@ -127,7 +131,12 @@ class AuthPage {
         email: email,
         password: password,
       );
-      debugPrint('User signed in with email: ${email}');
+      debugPrint('User signed in with email: $email');
+
+      // ✅ Yönlendirme
+      if (context.mounted) {
+        Navigator.pushReplacementNamed(context, '/messages');
+      }
     } on FirebaseAuthException catch (e) {
       debugPrint('Firebase Auth Error (Sign In): ${e.code} - ${e.message}');
       if (context.mounted) {
