@@ -1,5 +1,8 @@
 import 'dart:io';
+import 'package:chatly/services/apple_auth_page.dart';
 import 'package:flutter/material.dart';
+import 'package:chatly/services/auth_page.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -9,6 +12,8 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
+  final AppleAuthPage _appleAuthPage = AppleAuthPage();
+  final AuthPage _authPage = AuthPage();
   bool _isLogin = true;
   final _formKey = GlobalKey<FormState>();
 
@@ -95,7 +100,24 @@ class _AuthScreenState extends State<AuthScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      onPressed: () {},
+                      onPressed: () {
+                        if (_formKey.currentState?.validate() ?? false) {
+                          if (_isLogin) {
+                            _authPage.signInWithEmailPassword(
+                              context,
+                              email,
+                              password,
+                            );
+                          } else {
+                            _authPage.signUpWithEmailPassword(
+                              context,
+                              email,
+                              password,
+                              username,
+                            );
+                          }
+                        }
+                      },
                       child: Text(
                         _isLogin ? 'Sign in' : 'Sign up',
                         style: const TextStyle(
@@ -127,6 +149,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       label: 'Sign in with Google',
                       onTap: () {
                         debugPrint("Google Login Tapped");
+                        _authPage.signInWithGoogle(context);
                       },
                     )
                   else if (Platform.isIOS)
@@ -134,6 +157,20 @@ class _AuthScreenState extends State<AuthScreen> {
                       logoPath: 'assets/images/apple.png',
                       label: 'Sign in with Apple',
                       onTap: () {
+                        onTap:
+                        () async {
+                          try {
+                            final userCredential = await _appleAuthPage
+                                .signInWithApple();
+                            print(
+                              'Apple Sign-In başarılı: ${userCredential.user?.email}',
+                            );
+                            // Giriş sonrası yönlendirme veya state güncelle
+                          } catch (e) {
+                            print('Apple Sign-In hatası: $e');
+                            // Hata mesajı gösterebilirsin
+                          }
+                        };
                         debugPrint("Apple Login Tapped");
                       },
                     ),
