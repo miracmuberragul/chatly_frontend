@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -54,6 +56,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         const SizedBox(height: 16),
                       ],
                     ),
+
                   TextFormField(
                     keyboardType: TextInputType.emailAddress,
                     decoration: _inputDecoration('Email'),
@@ -103,19 +106,37 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 16),
-
-                  const Text('-Or sign in with-'),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 24),
 
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _socialLoginButton('assets/images/google.png'),
-                      const SizedBox(width: 16),
-                      _socialLoginButton('assets/images/apple.png'),
+                    children: const [
+                      Expanded(child: Divider(thickness: 1)),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Text("or"),
+                      ),
+                      Expanded(child: Divider(thickness: 1)),
                     ],
                   ),
+
+                  const SizedBox(height: 16),
+
+                  if (Platform.isAndroid)
+                    _socialLoginButton(
+                      logoPath: 'assets/images/google.png',
+                      label: 'Sign in with Google',
+                      onTap: () {
+                        debugPrint("Google Login Tapped");
+                      },
+                    )
+                  else if (Platform.isIOS)
+                    _socialLoginButton(
+                      logoPath: 'assets/images/apple.png',
+                      label: 'Sign in with Apple',
+                      onTap: () {
+                        debugPrint("Apple Login Tapped");
+                      },
+                    ),
 
                   const SizedBox(height: 20),
 
@@ -162,22 +183,43 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  Widget _socialLoginButton(String assetPath) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.3),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
+  Widget _socialLoginButton({
+    required String logoPath,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        height: 48,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.3),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(logoPath, width: 24, height: 24, fit: BoxFit.contain),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.black87,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
-      child: Center(child: Image.asset(assetPath, width: 24, height: 24)),
     );
   }
 }
