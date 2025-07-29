@@ -162,41 +162,49 @@ class _ChatScreenState extends State<ChatScreen> {
 
           //  Mesaj Gönderme Alanı
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            color: Colors.white,
-            child: Row(
-              children: [
-                IconButton(
-                  icon: Icon(Icons.photo, color: myColor),
-                  onPressed: () {},
+            color: Colors.white, // Alt arka plan tamamen beyaz
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 10,
                 ),
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      hintText: "Type a message",
-                      filled: true,
-                      fillColor: Colors.grey[200],
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25),
-                        borderSide: BorderSide.none,
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.photo, color: myColor),
+                      onPressed: () {},
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        decoration: InputDecoration(
+                          hintText: "Type a message",
+                          filled: true,
+                          fillColor: Colors.grey[200],
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(25),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onSubmitted: (_) => _sendMessage(),
                       ),
                     ),
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
+                    const SizedBox(width: 8),
+                    CircleAvatar(
+                      backgroundColor: myColor,
+                      child: IconButton(
+                        icon: const Icon(Icons.send, color: Colors.white),
+                        onPressed: _sendMessage,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                CircleAvatar(
-                  backgroundColor: myColor,
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
-                    onPressed: _sendMessage,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ],
