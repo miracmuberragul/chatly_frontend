@@ -1,5 +1,4 @@
 import 'package:chatly/models/user_model.dart';
-import 'package:chatly/services/auth_page.dart';
 import 'package:chatly/services/friendship_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -13,42 +12,35 @@ class FriendRequestScreen extends StatefulWidget {
 }
 
 class _FriendRequestScreenState extends State<FriendRequestScreen> {
-  // Şimdilik test verisi
-  List<UserModel> friendRequests = [];
-  final friendshipService = FriendshipService();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  bool _isLoading = true;
+  final FriendshipService _friendshipService = FriendshipService();
+  final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
+  late Future<List<UserModel>> _friendRequestsFuture;
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    _fetchFriendRequests();
+    _loadFriendRequests();
   }
 
-  Future<void> _fetchFriendRequests() async {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) {
-      setState(() {
-        _isLoading = false;
-      });
-      return;
-    }
+  void _loadFriendRequests() {
+    _friendRequestsFuture =
+        _friendshipService.getIncomingPendingFriendRequestsAsUsers(currentUserId);
+  }
 
-    try {
-      // Yeni eklediğimiz metodu kullanıyoruz
-      final requests = await friendshipService
-          .getIncomingPendingFriendRequestsAsUsers(currentUser.uid);
-      setState(() {
-        friendRequests = requests; // Doğrudan UserModel listesini atıyoruz
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('Error fetching friend requests: $e');
-      setState(() {
-        _isLoading = false;
-      });
-    }
+  Future<void> _acceptFriendRequest(String requesterId) async {
+    await _friendshipService.acceptFriendRequest(requesterId, currentUserId);
+    setState(() {
+      // Refresh the list after accepting
+      _loadFriendRequests();
+    });
+  }
+
+  Future<void> _rejectFriendRequest(String requesterId) async {
+    await _friendshipService.rejectFriendRequest(requesterId, currentUserId);
+    setState(() {
+      // Refresh the list after rejecting
+      _loadFriendRequests();
+    });
   }
 
   @override
@@ -67,65 +59,20 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
         centerTitle: false,
         backgroundColor: Colors.white,
         elevation: 0,
-        foregroundColor: Color(0xFF2F4156),
+        foregroundColor: const Color(0xFF2F4156),
         automaticallyImplyLeading: true,
       ),
-      body: hasRequests
-          ? ListView.separated(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              itemCount: friendRequests.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                final user = friendRequests[index];
-                return ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFF2F4156),
-                    child: Icon(Icons.person, color: Colors.white),
-                  ),
-                  title: Text(
-                    user.username,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.check, color: Color(0xFF2F4156)),
-                        onPressed: () async {
-                          final currentUser = FirebaseAuth.instance.currentUser;
-                          if (currentUser == null) return;
-                          List<String> ids = [currentUser.uid, user.uid];
-                          ids.sort();
-                          String friendshipId = ids.join('_');
-
-                          await friendshipService.acceptFriendRequest(
-                            friendshipId,
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Color(0xFF2F4156)),
-                        onPressed: () async {
-                          final currentUser = FirebaseAuth.instance.currentUser;
-                          if (currentUser == null) return;
-                          List<String> ids = [currentUser.uid, user.uid];
-                          ids.sort();
-                          String friendshipId = ids.join('_');
-
-                          await friendshipService.rejectFriendRequest(
-                            friendshipId,
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                );
-              },
-            )
-          : Center(
+      body: FutureBuilder<List<UserModel>>(
+        future: _friendRequestsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: const [
@@ -137,7 +84,47 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                   ),
                 ],
               ),
-            ),
+            );
+          }
+
+          final friendRequests = snapshot.data!;
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            itemCount: friendRequests.length,
+            itemBuilder: (context, index) {
+              final user = friendRequests[index];
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: NetworkImage(user.profilePhotoUrl ??
+                      'https://via.placeholder.com/150'),
+                ),
+                title: Text(user.username ?? 'No Name'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.check, color: Colors.green),
+                      onPressed: () {
+                        if (user.uid != null) {
+                          _acceptFriendRequest(user.uid!);
+                        }
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.red),
+                      onPressed: () {
+                        if (user.uid != null) {
+                          _rejectFriendRequest(user.uid!);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

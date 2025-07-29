@@ -43,7 +43,8 @@ class _ContactScreenState extends State<ContactScreen> {
       query = input;
       filteredContacts = allContacts
           .where(
-            (user) => user.username.toLowerCase().contains(input.toLowerCase()),
+            (user) =>
+                user.username!.toLowerCase().contains(input.toLowerCase()),
           )
           .toList();
     });
@@ -150,45 +151,50 @@ class _ContactScreenState extends State<ContactScreen> {
               itemCount: filteredContacts.length,
               itemBuilder: (context, index) {
                 final UserModel user = filteredContacts[index];
-                final alreadySent = sentRequests.contains(user.username);
+                final alreadySent = sentRequests.contains(user.uid);
 
                 return ListTile(
                   leading: const CircleAvatar(
                     backgroundColor: Color(0xFF2F4156),
                     child: Icon(Icons.person, color: Colors.white),
                   ),
-                  title: Text(user.username),
+                  title: Text(user.username!),
 
                   trailing: ElevatedButton(
-                    onPressed: alreadySent
+                    onPressed: alreadySent || user.uid == null
                         ? null
                         : () async {
+                            final scaffoldMessenger = ScaffoldMessenger.of(
+                              context,
+                            );
+                            final currentUsername = user.username;
+
                             try {
                               final currentUser =
                                   FirebaseAuth.instance.currentUser;
-                              List<String> ids = [currentUser!.uid, user.uid];
-                              // Firestore'a friend request gönder
+                              if (currentUser == null) return;
+
                               await friendshipService.sendFriendRequest(
-                                currentUser!.uid,
-                                user.uid,
+                                requesterId: currentUser.uid,
+                                receiverId: user.uid!,
                               );
 
-                              // UI'de güncelle
+                              if (!mounted) return;
                               setState(() {
-                                sentRequests.add(user.username);
+                                sentRequests.add(user.uid!);
                               });
 
-                              // Bildirim
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              scaffoldMessenger.showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    'Friend request sent to ${user.username}',
+                                    'Friend request sent to $currentUsername',
                                   ),
                                   duration: const Duration(seconds: 2),
                                 ),
                               );
                             } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              if (!mounted) return;
+                              scaffoldMessenger.showSnackBar(
                                 SnackBar(
                                   content: Text('Failed to send request: $e'),
                                   duration: const Duration(seconds: 2),

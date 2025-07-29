@@ -67,14 +67,9 @@ class FriendshipService {
     required String status,
   }) async {
     try {
-      await _firestore
-          .collection(_friendshipCollection)
-          .doc(friendshipId)
-          .update({
-            'status': 'rejected',
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-      log('Friend request rejected and deleted: $friendshipId');
+      await _firestore.collection(_friendshipCollection).doc(docId).update({
+        'status': status,
+      });
     } catch (e) {
       log('Error updating friendship status: $e');
       rethrow;
@@ -171,54 +166,12 @@ class FriendshipService {
     }
   }
 
-  Future<List<UserModel>> getIncomingPendingFriendRequestsAsUsers(
-    String currentUserId,
+  /// A method to reject a friend request, which is an alias for declining.
+  Future<void> rejectFriendRequest(
+    String requesterId,
+    String receiverId,
   ) async {
-    try {
-      final friendRequestSnapshot = await _firestore
-          .collection(_friendshipCollection)
-          .where('receiverId', isEqualTo: currentUserId)
-          .where('status', isEqualTo: 'pending')
-          .get();
-
-      if (friendRequestSnapshot.docs.isEmpty) {
-        return [];
-      }
-
-      final requesterIds = friendRequestSnapshot.docs
-          .map((doc) => doc.data()['requesterId'] as String)
-          .toList();
-
-      final userQuerySnapshot = await _firestore
-          .collection(_userCollection)
-          .where(FieldPath.documentId, whereIn: requesterIds)
-          .get();
-      return userQuerySnapshot.docs
-          .map((doc) => UserModel.fromJson(doc.data()))
-          .toList();
-    } catch (e) {
-      log('Error fetching incoming friend requests as users: $e');
-      return [];
-    }
-  }
-
-  ///getpending friend requests for a specific user (where they are the requester).
-  List<FriendshipModel> getPendingRequestsForRequester(String userId) {
-    List<FriendshipModel> pendingRequests = [];
-    _firestore
-        .collection(_friendshipCollection)
-        .where('requesterId', isEqualTo: userId)
-        .where('status', isEqualTo: 'pending')
-        .get()
-        .then((snapshot) {
-          for (var doc in snapshot.docs) {
-            pendingRequests.add(FriendshipModel.fromJson(doc.data()));
-          }
-        })
-        .catchError((error) {
-          log('Error fetching pending requests for requester: $error');
-        });
-    return pendingRequests;
+    return declineFriendRequest(requesterId, receiverId);
   }
 
   Future<List<UserModel>> getIncomingPendingFriendRequestsAsUsers(
@@ -239,57 +192,9 @@ class FriendshipService {
         return FriendshipModel.fromJson(doc.data()).requesterId;
       }).toList();
 
-      // requesterIds'den UserModel'leri çek
-      final userQuerySnapshot = await _firestore
-          .collection(_userCollection)
-          .where(FieldPath.documentId, whereIn: requesterIds)
-          .get();
-
-      return userQuerySnapshot.docs
-          .map((doc) => UserModel.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      log('Error fetching incoming pending friend requests as users: $e');
-      return [];
-    }
-  }
-
-  ///getpending friend requests for a specific user (where they are the requester).
-  List<FriendshipModel> getPendingRequestsForRequester(String userId) {
-    List<FriendshipModel> pendingRequests = [];
-    _firestore
-        .collection(_friendshipCollection)
-        .where('requesterId', isEqualTo: userId)
-        .where('status', isEqualTo: 'pending')
-        .get()
-        .then((snapshot) {
-          for (var doc in snapshot.docs) {
-            pendingRequests.add(FriendshipModel.fromJson(doc.data()));
-          }
-        })
-        .catchError((error) {
-          log('Error fetching pending requests for requester: $error');
-        });
-    return pendingRequests;
-  }
-
-  Future<List<UserModel>> getIncomingPendingFriendRequestsAsUsers(
-    String currentUserId,
-  ) async {
-    try {
-      final querySnapshot = await _firestore
-          .collection(_friendshipCollection)
-          .where('receiverId', isEqualTo: currentUserId)
-          .where('status', isEqualTo: 'pending')
-          .get();
-
-      if (querySnapshot.docs.isEmpty) {
+      if (requesterIds.isEmpty) {
         return [];
       }
-
-      final requesterIds = querySnapshot.docs.map((doc) {
-        return FriendshipModel.fromJson(doc.data()).requesterId;
-      }).toList();
 
       // requesterIds'den UserModel'leri çek
       final userQuerySnapshot = await _firestore

@@ -43,6 +43,5 @@ class UserModel {
       'lastSeen': lastSeen,
       'friends': friends,
     };
-    return data;
   }
 }

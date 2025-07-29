@@ -32,7 +32,7 @@ class UserService {
   }
 
   /// Fetches a user's profile information by their unique ID.
-  Future<UserModel?> getUser(String userId) async {
+  Future<UserModel?> getUserById(String userId) async {
     try {
       final docSnapshot = await _usersCollection.doc(userId).get();
 
@@ -48,15 +48,12 @@ class UserService {
   }
 
   /// Gets all users as a stream.
-  Stream<List<UserModel>> getUsersStream(String currentUserId) {
-    return _usersCollection
-        .where('uid', isNotEqualTo: currentUserId) // Exclude the current user
-        .snapshots()
-        .map((snapshot) {
-          return snapshot.docs.map((doc) {
-            return UserModel.fromJson(doc.data() as Map<String, dynamic>);
-          }).toList();
-        });
+  Stream<List<UserModel>> getUsersStream() {
+    return _usersCollection.snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return UserModel.fromJson(doc.data() as Map<String, dynamic>);
+      }).toList();
+    });
   }
 
   /// Updates the user's profile photo URL.

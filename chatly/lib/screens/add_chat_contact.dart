@@ -1,6 +1,3 @@
-import 'package:chatly/models/user_model.dart';
-import 'package:chatly/services/user_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore'a direkt erişim için kalsın
 import 'package:firebase_auth/firebase_auth.dart'; // Firebase Authentication'dan UID almak için
