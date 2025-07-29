@@ -23,8 +23,8 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
   }
 
   void _loadFriendRequests() {
-    _friendRequestsFuture =
-        _friendshipService.getIncomingPendingFriendRequestsAsUsers(currentUserId);
+    _friendRequestsFuture = _friendshipService
+        .getIncomingPendingFriendRequestsAsUsers(currentUserId);
   }
 
   Future<void> _acceptFriendRequest(String requesterId) async {
@@ -95,8 +95,9 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
               final user = friendRequests[index];
               return ListTile(
                 leading: CircleAvatar(
-                  backgroundImage: NetworkImage(user.profilePhotoUrl ??
-                      'https://via.placeholder.com/150'),
+                  backgroundImage: NetworkImage(
+                    user.profilePhotoUrl ?? 'https://via.placeholder.com/150',
+                  ),
                 ),
                 title: Text(user.username ?? 'No Name'),
                 trailing: Row(

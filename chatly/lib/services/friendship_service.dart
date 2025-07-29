@@ -127,7 +127,7 @@ class FriendshipService {
           .collection(_friendshipCollection)
           .where('requesterId', isEqualTo: requesterId)
           .where('receiverId', isEqualTo: receiverId)
-          .where('status', isEqualTo: 'pending')
+          .where('status', isEqualTo: 'accpeted')
           .limit(1)
           .get();
 
@@ -152,7 +152,7 @@ class FriendshipService {
           .collection(_friendshipCollection)
           .where('requesterId', isEqualTo: requesterId)
           .where('receiverId', isEqualTo: receiverId)
-          .where('status', isEqualTo: 'pending')
+          .where('status', isEqualTo: 'declined')
           .limit(1)
           .get();
 
@@ -189,6 +189,7 @@ class FriendshipService {
       }
 
       final requesterIds = querySnapshot.docs.map((doc) {
+        log('Requester ID: ${doc.data()}');
         return FriendshipModel.fromJson(doc.data()).requesterId;
       }).toList();
 
@@ -205,8 +206,10 @@ class FriendshipService {
       return userQuerySnapshot.docs
           .map((doc) => UserModel.fromJson(doc.data() as Map<String, dynamic>))
           .toList();
-    } catch (e) {
-      log('Error fetching incoming pending friend requests as users: $e');
+    } catch (e, stacktrace) {
+      log(
+        'Error fetching incoming pending friend requests as users: $e $stacktrace',
+      );
       return [];
     }
   }
