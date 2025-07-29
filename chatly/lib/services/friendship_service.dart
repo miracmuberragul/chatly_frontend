@@ -144,4 +144,16 @@ class FriendshipService {
           .toList();
     });
   }
+
+  // Tüm arkadaşlıkları listele (filtre yok)
+  Stream<List<FriendshipModel>> getAllFriendships() {
+    return _firestore
+        .collection(_friendshipCollection)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => FriendshipModel.fromJson(doc.data()))
+              .toList(),
+        );
+  }
 }
