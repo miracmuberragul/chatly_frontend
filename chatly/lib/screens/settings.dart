@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
 import 'package:firebase_storage/firebase_storage.dart'; // Import Firebase Storage
 import 'package:firebase_core/firebase_core.dart'; // Import Firebase Core
 import '../services/user_service.dart'; // Import your UserService
-import '../models/user_model.dart'; // Import your UserModel
+import '../models/user_model.dart'; // Import your UserModell
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
