@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:chatly/screens/auth_screen.dart';
+import 'package:chatly/screens/home_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -23,10 +25,22 @@ class _SplashScreenState extends State<SplashScreen>
     )..forward();
 
     Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const AuthScreen()),
-      );
+      final user = FirebaseAuth.instance.currentUser;
+      if (!mounted) return;
+
+      if (user != null) {
+        // Giriş yapılmış, HomePage'e yönlendir
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      } else {
+        // Giriş yapılmamış, AuthScreen'e yönlendir
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AuthScreen()),
+        );
+      }
     });
 
     _animation = Tween<double>(
