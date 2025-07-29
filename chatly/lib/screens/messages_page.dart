@@ -17,7 +17,7 @@ class _MessagesPageState extends State<MessagesPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // 🔵 Başlık ve + Butonu
+            //  Başlık ve + Butonu
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
@@ -27,13 +27,13 @@ class _MessagesPageState extends State<MessagesPage> {
                 children: [
                   const Text(
                     'Messages',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.add, size: 28),
                     onPressed: () {
-                      // ➕ ContactsPage'e geçiş
+                      //  ContactsPage'e geçiş
                       Navigator.pushNamed(
                         context,
                         '/contacts',
@@ -44,7 +44,7 @@ class _MessagesPageState extends State<MessagesPage> {
               ),
             ),
 
-            // 🔍 Arama Çubuğu
+            //  Arama Çubuğu
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: TextField(
@@ -54,14 +54,15 @@ class _MessagesPageState extends State<MessagesPage> {
                   filled: true,
                   fillColor: Colors.grey[200],
                   border: OutlineInputBorder(
-                    borderSide: const BorderSide(
-                      color: Colors.blue,
-                    ), // solid border
-                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF2F4156)),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: Colors.blue, width: 2),
-                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF2F4156),
+                      width: 2,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
               ),
@@ -69,14 +70,14 @@ class _MessagesPageState extends State<MessagesPage> {
 
             const SizedBox(height: 16),
 
-            // 💬 Mesaj Listesi (şimdilik boş list)
+            //  Mesaj Listesi (şimdilik boş list)
             Expanded(
               child: ListView.builder(
                 itemCount: 5, // örnek 5 öğe
                 itemBuilder: (context, index) {
                   return ListTile(
                     leading: const CircleAvatar(
-                      backgroundColor: Colors.blue,
+                      backgroundColor: Color(0xFF2F4156),
                       child: Icon(Icons.person, color: Colors.white),
                     ),
                     title: Text('Kullanıcı $index'),
@@ -90,28 +91,27 @@ class _MessagesPageState extends State<MessagesPage> {
         ),
       ),
 
-      // 🔻 Alt Navigation Bar
+      //  Alt Navigation Bar
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
-          // Şimdilik sadece mesaj ikonuna tıklanabilir, diğerleri dummy
           setState(() {
             _selectedIndex = index;
           });
         },
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.users),
+            icon: Icon(FontAwesomeIcons.users, color: Color(0xFF2F4156)),
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(
-              Icons.chat_bubble,
-              color: Colors.blue,
-            ), // Ortadaki ikon mavi
+            icon: Icon(FontAwesomeIcons.solidMessage, color: Color(0xFF71D7E1)),
             label: '',
           ),
-          BottomNavigationBarItem(icon: Icon(FontAwesomeIcons.gear), label: ''),
+          BottomNavigationBarItem(
+            icon: Icon(FontAwesomeIcons.gear, color: Color(0xFF2F4156)),
+            label: '',
+          ),
         ],
       ),
     );
