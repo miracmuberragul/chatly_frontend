@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'chat_screen.dart';
 
 //  model class
 class ChatUser {
@@ -72,15 +73,30 @@ class AddChatContactPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         ...users.map(
-                          (user) => Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.black),
-                              borderRadius: BorderRadius.circular(8),
+                          (user) => GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ChatScreen(
+                                    userName: user.name,
+                                    isOnline: true,
+                                    profileImageUrl:
+                                        "https://via.placeholder.com/150",
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              margin: const EdgeInsets.only(bottom: 8),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.black),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(user.name),
                             ),
-                            child: Text(user.name),
                           ),
                         ),
                         const SizedBox(height: 16),
