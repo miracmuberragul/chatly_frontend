@@ -1,3 +1,7 @@
+import 'package:chatly/models/user_model.dart';
+import 'package:chatly/services/auth_page.dart';
+import 'package:chatly/services/friendship_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -10,7 +14,8 @@ class FriendRequestScreen extends StatefulWidget {
 
 class _FriendRequestScreenState extends State<FriendRequestScreen> {
   // Şimdilik test verisi
-  final List<String> friendRequests = [];
+  final List<UserModel> friendRequests = [];
+  final friendshipService = FriendshipService();
 
   @override
   Widget build(BuildContext context) {
@@ -39,14 +44,14 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
               itemCount: friendRequests.length,
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
-                final name = friendRequests[index];
+                final user = friendRequests[index];
                 return ListTile(
                   leading: const CircleAvatar(
                     backgroundColor: Color(0xFF2F4156),
                     child: Icon(Icons.person, color: Colors.white),
                   ),
                   title: Text(
-                    name,
+                    user.username,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -58,13 +63,29 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                       IconButton(
                         icon: const Icon(Icons.check, color: Color(0xFF2F4156)),
                         onPressed: () async {
-                          // Kabul et
+                          final currentUser = FirebaseAuth.instance.currentUser;
+                          if (currentUser == null) return;
+                          List<String> ids = [currentUser.uid, user.uid];
+                          ids.sort();
+                          String friendshipId = ids.join('_');
+
+                          await friendshipService.acceptFriendRequest(
+                            friendshipId,
+                          );
                         },
                       ),
                       IconButton(
                         icon: const Icon(Icons.close, color: Color(0xFF2F4156)),
                         onPressed: () async {
-                          // Reddet
+                          final currentUser = FirebaseAuth.instance.currentUser;
+                          if (currentUser == null) return;
+                          List<String> ids = [currentUser.uid, user.uid];
+                          ids.sort();
+                          String friendshipId = ids.join('_');
+
+                          await friendshipService.rejectFriendRequest(
+                            friendshipId,
+                          );
                         },
                       ),
                     ],
