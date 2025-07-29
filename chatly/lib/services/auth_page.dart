@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthPage {
+  late final String userId;
+
   Future<void> signInWithGoogle(BuildContext context) async {
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn()
@@ -80,7 +82,7 @@ class AuthPage {
       final userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
       final user = userCredential.user;
-
+      userId = user?.uid ?? '';
       if (user != null) {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'uid': user.uid,
@@ -92,7 +94,7 @@ class AuthPage {
 
         // ✅ Yönlendirme
         if (context.mounted) {
-          Navigator.pushReplacementNamed(context, '/messages');
+          Navigator.pushReplacementNamed(context, '/home');
         }
       }
     } on FirebaseAuthException catch (e) {
@@ -135,7 +137,7 @@ class AuthPage {
 
       // ✅ Yönlendirme
       if (context.mounted) {
-        Navigator.pushReplacementNamed(context, '/messages');
+        Navigator.pushReplacementNamed(context, '/home');
       }
     } on FirebaseAuthException catch (e) {
       debugPrint('Firebase Auth Error (Sign In): ${e.code} - ${e.message}');

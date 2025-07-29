@@ -19,7 +19,7 @@ class UserModel {
     this.friends,
   });
 
-    factory UserModel.fromJson(Map<String, dynamic> json) {
+  factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       uid: json['uid'] as String,
       username: json['username'] as String?,
@@ -33,7 +33,7 @@ class UserModel {
     );
   }
 
-    Map<String, dynamic> toJson() {
+  Map<String, dynamic> toJson() {
     return {
       'uid': uid,
       'username': username,
@@ -43,5 +43,6 @@ class UserModel {
       'lastSeen': lastSeen,
       'friends': friends,
     };
+    return data;
   }
 }

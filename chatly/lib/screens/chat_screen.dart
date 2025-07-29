@@ -86,7 +86,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-        _messageService.sendMessage(
+    _messageService.sendMessage(
       chatId: _chatId,
       senderId: _currentUserId,
       otherUserId: widget.otherUserId, // Pass the other user's ID
@@ -100,7 +100,8 @@ class _ChatScreenState extends State<ChatScreen> {
     // and mark any unread messages as seen.
     _messageService.getMessagesStream(_chatId).first.then((messages) {
       for (final message in messages) {
-        if (message.senderId != _currentUserId && !message.seenBy.contains(_currentUserId)) {
+        if (message.senderId != _currentUserId &&
+            !message.seenBy.contains(_currentUserId)) {
           _messageService.markMessageAsSeen(
             chatId: _chatId,
             messageId: message.id,
@@ -135,10 +136,24 @@ class _ChatScreenState extends State<ChatScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(widget.username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 Text(
-                  _isOtherUserTyping ? 'typing...' : (widget.isOnline ? 'online' : 'offline'),
-                  style: TextStyle(fontSize: 12, fontStyle: _isOtherUserTyping ? FontStyle.italic : FontStyle.normal, color: Colors.white70),
+                  widget.username,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  _isOtherUserTyping
+                      ? 'typing...'
+                      : (widget.isOnline ? 'online' : 'offline'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontStyle: _isOtherUserTyping
+                        ? FontStyle.italic
+                        : FontStyle.normal,
+                    color: Colors.white70,
+                  ),
                 ),
               ],
             ),
@@ -172,13 +187,22 @@ class _ChatScreenState extends State<ChatScreen> {
                     final bool seen = message.seenBy.length > 1;
 
                     return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      alignment: isMe
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
                       child: Container(
-                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.7,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         margin: const EdgeInsets.symmetric(vertical: 6),
                         decoration: BoxDecoration(
-                          color: isMe ? myColor.withAlpha((255 * 0.9).round()) : Colors.white,
+                          color: isMe
+                              ? myColor.withAlpha((255 * 0.9).round())
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Column(
@@ -186,22 +210,34 @@ class _ChatScreenState extends State<ChatScreen> {
                           children: [
                             Text(
                               message.text,
-                              style: TextStyle(color: isMe ? Colors.white : Colors.black, fontSize: 16),
+                              style: TextStyle(
+                                color: isMe ? Colors.white : Colors.black,
+                                fontSize: 16,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  DateFormat.Hm().format(message.timestamp.toDate()),
-                                  style: TextStyle(color: isMe ? Colors.white70 : Colors.grey[600], fontSize: 12),
+                                  DateFormat.Hm().format(
+                                    message.timestamp.toDate(),
+                                  ),
+                                  style: TextStyle(
+                                    color: isMe
+                                        ? Colors.white70
+                                        : Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
                                 ),
                                 const SizedBox(width: 4),
                                 if (isMe)
                                   Icon(
                                     seen ? Icons.done_all : Icons.check,
                                     size: 16,
-                                    color: seen ? Colors.blue[400] : Colors.white70,
+                                    color: seen
+                                        ? Colors.blue[400]
+                                        : Colors.white70,
                                   ),
                               ],
                             ),
@@ -215,33 +251,49 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            color: Colors.white,
-            child: Row(
-              children: [
-                IconButton(icon: Icon(Icons.photo, color: myColor), onPressed: () {}),
-                Expanded(
-                  child: TextField(
-                    onChanged: (value) {
-                      _onTyping();
-                    },
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      hintText: "Type a message",
-                      filled: true,
-                      fillColor: Colors.grey[200],
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
+            color: Colors.white, // Alt arka plan tamamen beyaz
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 10,
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.photo, color: myColor),
+                      onPressed: () {},
                     ),
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        decoration: InputDecoration(
+                          hintText: "Type a message",
+                          filled: true,
+                          fillColor: Colors.grey[200],
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(25),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    CircleAvatar(
+                      backgroundColor: myColor,
+                      child: IconButton(
+                        icon: const Icon(Icons.send, color: Colors.white),
+                        onPressed: _sendMessage,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                CircleAvatar(
-                  backgroundColor: myColor,
-                  child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _sendMessage),
-                ),
-              ],
+              ),
             ),
           ),
         ],

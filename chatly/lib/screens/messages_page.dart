@@ -61,7 +61,11 @@ class _MessagesPageState extends State<MessagesPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: const [
-            Icon(FontAwesomeIcons.solidCommentDots, size: 64, color: Colors.grey),
+            Icon(
+              FontAwesomeIcons.solidCommentDots,
+              size: 64,
+              color: Colors.grey,
+            ),
             SizedBox(height: 20),
             Text(
               'No chats yet',
@@ -78,25 +82,32 @@ class _MessagesPageState extends State<MessagesPage> {
       );
     }
 
-
-
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
             // Header
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 20,
+              ),
               child: Row(
                 children: [
-                  const Text('Messages', style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Messages',
+                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                  ),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.add, size: 28),
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const AddChatContactPage()),
+                        MaterialPageRoute(
+                          builder: (context) => const AddChatContactPage(),
+                        ),
                       );
                     },
                   ),
@@ -112,7 +123,10 @@ class _MessagesPageState extends State<MessagesPage> {
                   prefixIcon: const Icon(Icons.search),
                   filled: true,
                   fillColor: Colors.grey[200],
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
             ),
@@ -128,20 +142,24 @@ class _MessagesPageState extends State<MessagesPage> {
                   if (snapshot.hasError) {
                     return Center(child: Text('Error: ${snapshot.error}'));
                   }
-                                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     // If there are no chats, show a list of users to start a chat with.
                     return StreamBuilder<List<UserModel>>(
                       stream: _userService.getUsersStream(currentUserId),
                       builder: (context, userSnapshot) {
                         if (userSnapshot.connectionState ==
                             ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
                         if (userSnapshot.hasError) {
                           return Center(
-                              child: Text('Error: ${userSnapshot.error}'));
+                            child: Text('Error: ${userSnapshot.error}'),
+                          );
                         }
-                        if (!userSnapshot.hasData || userSnapshot.data!.isEmpty) {
+                        if (!userSnapshot.hasData ||
+                            userSnapshot.data!.isEmpty) {
                           return buildNoChatsWidget(); // Show this only if there are no users to chat with
                         }
 
@@ -152,11 +170,15 @@ class _MessagesPageState extends State<MessagesPage> {
                             final user = users[index];
                             return ListTile(
                               leading: CircleAvatar(
-                                backgroundImage: NetworkImage(user.profilePhotoUrl ??
-                                    'https://via.placeholder.com/150'),
+                                backgroundImage: NetworkImage(
+                                  user.profilePhotoUrl ??
+                                      'https://via.placeholder.com/150',
+                                ),
                               ),
                               title: Text(user.username ?? 'No Name'),
-                              subtitle: Text(user.isOnline ? 'Online' : 'Offline'),
+                              subtitle: Text(
+                                user.isOnline ? 'Online' : 'Offline',
+                              ),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -165,7 +187,8 @@ class _MessagesPageState extends State<MessagesPage> {
                                       otherUserId: user.uid,
                                       username: user.username ?? 'No Name',
                                       isOnline: user.isOnline,
-                                      profilePhotoUrl: user.profilePhotoUrl ?? '',
+                                      profilePhotoUrl:
+                                          user.profilePhotoUrl ?? '',
                                     ),
                                   ),
                                 );
@@ -177,12 +200,15 @@ class _MessagesPageState extends State<MessagesPage> {
                     );
                   }
 
-                                    final chats = snapshot.data!;
+                  final chats = snapshot.data!;
                   return ListView.builder(
                     itemCount: chats.length,
                     itemBuilder: (context, index) {
                       final chat = chats[index];
-                      final otherUserId = chat.members.firstWhere((id) => id != currentUserId, orElse: () => '');
+                      final otherUserId = chat.members.firstWhere(
+                        (id) => id != currentUserId,
+                        orElse: () => '',
+                      );
 
                       if (otherUserId.isEmpty) return const SizedBox.shrink();
 
@@ -195,21 +221,38 @@ class _MessagesPageState extends State<MessagesPage> {
                           final otherUser = userSnapshot.data!;
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundImage: NetworkImage(otherUser.profilePhotoUrl ?? 'https://via.placeholder.com/150'),
+                              backgroundImage: NetworkImage(
+                                otherUser.profilePhotoUrl ??
+                                    'https://via.placeholder.com/150',
+                              ),
                               backgroundColor: Colors.grey[300],
-                              child: (otherUser.profilePhotoUrl == null || otherUser.profilePhotoUrl!.isEmpty) ? const Icon(Icons.person) : null,
+                              child:
+                                  (otherUser.profilePhotoUrl == null ||
+                                      otherUser.profilePhotoUrl!.isEmpty)
+                                  ? const Icon(Icons.person)
+                                  : null,
                             ),
-                                                        title: Text(otherUser.username ?? 'No Name', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text(chat.lastMessage, overflow: TextOverflow.ellipsis),
+                            title: Text(
+                              otherUser.username ?? 'No Name',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text(
+                              chat.lastMessage,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             onTap: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => ChatScreen(
                                     otherUserId: otherUserId,
-                                                                                                            username: otherUser.username ?? 'No Name',
+                                    username: otherUser.username ?? 'No Name',
                                     isOnline: otherUser.isOnline,
-                                    profilePhotoUrl: otherUser.profilePhotoUrl ?? 'https://via.placeholder.com/150',
+                                    profilePhotoUrl:
+                                        otherUser.profilePhotoUrl ??
+                                        'https://via.placeholder.com/150',
                                   ),
                                 ),
                               );
@@ -227,7 +270,7 @@ class _MessagesPageState extends State<MessagesPage> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-                onTap: (index) {
+        onTap: (index) {
           if (index == 1) return; // Already on this page
 
           setState(() {
@@ -237,19 +280,34 @@ class _MessagesPageState extends State<MessagesPage> {
           if (index == 0) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const FriendRequestScreen()),
-            ).then((_) => setState(() => _selectedIndex = 1)); // Reset index when returning
+              MaterialPageRoute(
+                builder: (context) => const FriendRequestScreen(),
+              ),
+            ).then(
+              (_) => setState(() => _selectedIndex = 1),
+            ); // Reset index when returning
           } else if (index == 2) {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const SettingsPage()),
-            ).then((_) => setState(() => _selectedIndex = 1)); // Reset index when returning
+            ).then(
+              (_) => setState(() => _selectedIndex = 1),
+            ); // Reset index when returning
           }
         },
         items: const [
-          BottomNavigationBarItem(icon: Icon(FontAwesomeIcons.users, color: Color(0xFF2F4156)), label: ''),
-          BottomNavigationBarItem(icon: Icon(FontAwesomeIcons.solidMessage, color: Color(0xFF71D7E1)), label: ''),
-          BottomNavigationBarItem(icon: Icon(FontAwesomeIcons.gear, color: Color(0xFF2F4156)), label: ''),
+          BottomNavigationBarItem(
+            icon: Icon(FontAwesomeIcons.users, color: Color(0xFF2F4156)),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(FontAwesomeIcons.solidMessage, color: Color(0xFF71D7E1)),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(FontAwesomeIcons.gear, color: Color(0xFF2F4156)),
+            label: '',
+          ),
         ],
       ),
     );
