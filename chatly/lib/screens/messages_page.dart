@@ -1,4 +1,5 @@
 import 'package:chatly/screens/add_chat_contact.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'chat_screen.dart';
@@ -80,30 +81,58 @@ class _MessagesPageState extends State<MessagesPage> {
 
             //  Mesaj Listesi
             Expanded(
-              child: ListView.builder(
-                itemCount: 5, // örnek kullanıcı sayısı
-                itemBuilder: (context, index) {
-                  final userName = 'Kullanıcı $index';
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                  return ListTile(
-                    leading: const CircleAvatar(
-                      backgroundColor: Color(0xFF2F4156),
-                      child: Icon(Icons.person, color: Colors.white),
-                    ),
-                    title: Text(userName),
-                    subtitle: const Text('Son mesaj...'),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ChatScreen(
-                            otherUserId: 'user_$index', // Placeholder ID
-                            username: userName,
-                            isOnline:
-                                index % 2 == 0, // demo için online/offline
-                            profilePhotoUrl: "https://via.placeholder.com/150",
-                          ),
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(child: Text("No user"));
+                  }
+
+                  final users = snapshot.data!.docs;
+
+                  return ListView.builder(
+                    itemCount: users.length,
+                    itemBuilder: (context, index) {
+                      final userData =
+                          users[index].data() as Map<String, dynamic>;
+                      final userId = users[index].id;
+                      final username = userData['username'] ?? 'Unknown';
+                      final profilePhoto = userData['profilePhotoUrl'] ?? '';
+                      final isOnline = userData['isOnline'] ?? false;
+
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFF2F4156),
+                          backgroundImage: profilePhoto.isNotEmpty
+                              ? NetworkImage(profilePhoto)
+                              : null,
+                          child: profilePhoto.isEmpty
+                              ? const Icon(Icons.person, color: Colors.white)
+                              : null,
                         ),
+                        title: Text(username),
+                        subtitle: const Text(
+                          'Last message...',
+                        ), // istersen son mesajı da ekleriz
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(
+                                otherUserId: userId,
+                                username: username,
+                                isOnline: isOnline,
+                                profilePhotoUrl: profilePhoto,
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
                   );
