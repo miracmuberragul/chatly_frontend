@@ -5,10 +5,12 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 class SocketService {
   // IMPORTANT: Replace with your server's local IP address.
   // Make sure your computer and test device are on the same Wi-Fi network.
-  static const String _serverUrl = 'ws://192.168.1.59:8080'; // Use your actual server IP
+  static const String _serverUrl =
+      'ws://192.168.1.59:8080'; // Use your actual server IP
 
   WebSocketChannel? _channel;
-  final StreamController<Map<String, dynamic>> _eventController = StreamController.broadcast();
+  final StreamController<Map<String, dynamic>> _eventController =
+      StreamController.broadcast();
 
   // Expose the stream for other parts of the app to listen to incoming events.
   Stream<Map<String, dynamic>> get events => _eventController.stream;

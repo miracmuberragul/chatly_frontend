@@ -16,9 +16,9 @@ class ChatService {
         .orderBy('lastMessageTimestamp', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return Chat.fromFirestore(doc);
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            return Chat.fromFirestore(doc);
+          }).toList();
+        });
   }
 }

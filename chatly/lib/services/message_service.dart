@@ -19,10 +19,12 @@ class MessageService {
 
     try {
       // Get a reference to the 'messages' subcollection for the given chat
-      final messagesCollection = _chatsCollection.doc(chatId).collection('messages');
+      final messagesCollection = _chatsCollection
+          .doc(chatId)
+          .collection('messages');
 
       // Create a new message object
-      final newMessage = Message(
+      final newMessage = MessageModel(
         id: messagesCollection.doc().id, // Firestore will generate the ID
         chatId: chatId,
         senderId: senderId,
@@ -32,26 +34,27 @@ class MessageService {
       );
 
       // Use a transaction to ensure both operations (adding a message and updating the chat doc) succeed or fail together.
-      await _firestore.runTransaction((transaction) async {
-        // 1. Get a reference to the new message document.
-        final newMessageRef = messagesCollection.doc(newMessage.id);
+      await _firestore
+          .runTransaction((transaction) async {
+            // 1. Get a reference to the new message document.
+            final newMessageRef = messagesCollection.doc(newMessage.id);
 
-        // 2. Get a reference to the parent chat document.
-        final chatDocRef = _chatsCollection.doc(chatId);
+            // 2. Get a reference to the parent chat document.
+            final chatDocRef = _chatsCollection.doc(chatId);
 
-        // 3. Set the new message in the subcollection.
-        transaction.set(newMessageRef, newMessage.toFirestore());
+            // 3. Set the new message in the subcollection.
+            transaction.set(newMessageRef, newMessage.toFirestore());
 
-        // 4. Update the parent chat document with the last message info.
-        transaction.update(chatDocRef, {
-          'lastMessage': newMessage.text,
-          'lastMessageTimestamp': newMessage.timestamp,
-        });
-      }).catchError((error) {
-        log('Error sending message and updating chat: $error');
-        throw error;
-      });
-
+            // 4. Update the parent chat document with the last message info.
+            transaction.update(chatDocRef, {
+              'lastMessage': newMessage.text,
+              'lastMessageTimestamp': newMessage.timestamp,
+            });
+          })
+          .catchError((error) {
+            log('Error sending message and updating chat: $error');
+            throw error;
+          });
     } catch (e) {
       log('Error sending message: $e');
       // Optionally, re-throw or handle the error as needed
@@ -60,19 +63,21 @@ class MessageService {
   }
 
   /// Get a real-time stream of messages for a specific chat
-  Stream<List<Message>> getMessagesStream(String chatId) {
+  Stream<List<MessageModel>> getMessagesStream(String chatId) {
     return _chatsCollection
         .doc(chatId)
         .collection('messages')
         .orderBy('timestamp', descending: true) // Order by newest first
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) => Message.fromFirestore(doc)).toList();
-    });
+          return snapshot.docs
+              .map((doc) => MessageModel.fromFirestore(doc))
+              .toList();
+        });
   }
 
   /// Fetch a paginated list of older messages.
-  Future<List<Message>> getMessagesPaginated(
+  Future<List<MessageModel>> getMessagesPaginated(
     String chatId, {
     required DocumentSnapshot? lastVisible,
     int limit = 20,
@@ -88,7 +93,7 @@ class MessageService {
     }
 
     final snapshot = await query.get();
-    return snapshot.docs.map((doc) => Message.fromFirestore(doc)).toList();
+    return snapshot.docs.map((doc) => MessageModel.fromFirestore(doc)).toList();
   }
 
   /// Mark a specific message as seen by the current user.
@@ -103,10 +108,10 @@ class MessageService {
           .collection('messages')
           .doc(messageId)
           .update({
-        'seenBy': FieldValue.arrayUnion([userId])
-      });
+            'seenBy': FieldValue.arrayUnion([userId]),
+          });
     } catch (e) {
-      print('Error marking message as seen: $e');
+      log('Error marking message as seen: $e');
       // Handle error as needed
     }
   }
