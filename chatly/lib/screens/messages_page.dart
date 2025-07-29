@@ -1,3 +1,4 @@
+import 'package:chatly/screens/add_chat_contact.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'chat_screen.dart'; // ChatScreen dosyanı import etmeyi unutma
@@ -15,6 +16,7 @@ class _MessagesPageState extends State<MessagesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -34,7 +36,12 @@ class _MessagesPageState extends State<MessagesPage> {
                   IconButton(
                     icon: const Icon(Icons.add, size: 28),
                     onPressed: () {
-                      Navigator.pushNamed(context, '/contacts');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AddChatContactPage(),
+                        ),
+                      );
                     },
                   ),
                 ],
@@ -103,27 +110,37 @@ class _MessagesPageState extends State<MessagesPage> {
       ),
 
       //  Alt Navigation Bar
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.users, color: Color(0xFF2F4156)),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.solidMessage, color: Color(0xFF71D7E1)),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(FontAwesomeIcons.gear, color: Color(0xFF2F4156)),
-            label: '',
-          ),
-        ],
+      bottomNavigationBar: BottomAppBar(
+        color: Colors.white,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            IconButton(
+              icon: const Icon(
+                FontAwesomeIcons.users,
+                color: Color(0xFF2F4156),
+                size: 30,
+              ),
+              onPressed: () {},
+            ),
+            IconButton(
+              icon: const Icon(
+                FontAwesomeIcons.solidMessage,
+                color: Color(0xFF71D7E1),
+                size: 30,
+              ),
+              onPressed: () {},
+            ),
+            IconButton(
+              icon: const Icon(
+                FontAwesomeIcons.gear,
+                color: Color(0xFF2F4156),
+                size: 30,
+              ),
+              onPressed: () {},
+            ),
+          ],
+        ),
       ),
     );
   }
