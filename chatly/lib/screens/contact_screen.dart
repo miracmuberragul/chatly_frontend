@@ -159,7 +159,7 @@ class _ContactScreenState extends State<ContactScreen> {
                       backgroundColor: Color(0xFF2F4156),
                       child: Icon(Icons.person, color: Colors.white),
                     ),
-                    title: Text(user.username),
+                    title: Text(user.username!),
 
                     trailing: ElevatedButton(
                       onPressed: alreadySent
@@ -171,8 +171,8 @@ class _ContactScreenState extends State<ContactScreen> {
                                 List<String> ids = [currentUser!.uid, user.uid];
                                 // Firestore'a friend request gönder
                                 await friendshipService.sendFriendRequest(
-                                  currentUser!.uid,
-                                  user.uid,
+                                  requesterId: currentUser!.uid,
+                                  receiverId: user.uid,
                                 );
 
                                 // UI'de güncelle

@@ -42,7 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final userModel = await _userService.getUserById(currentUser!.uid);
       if (userModel != null) {
         setState(() {
-          _usernameController.text = userModel.username;
+          _usernameController.text = userModel.username!;
           _emailController.text = currentUser!.email ?? '';
           _profilePhotoUrl = userModel.profilePhotoUrl;
         });

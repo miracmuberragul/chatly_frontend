@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserModel {
   final String uid;
-  final String? username;
+  final String username;
   final String email;
   final String? profilePhotoUrl;
   final bool isOnline;
@@ -11,7 +11,7 @@ class UserModel {
 
   UserModel({
     required this.uid,
-    this.username,
+    required this.username,
     required this.email,
     this.profilePhotoUrl,
     this.isOnline = false,
@@ -22,7 +22,7 @@ class UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       uid: json['uid'] as String,
-      username: json['username'] as String?,
+      username: json['username'] as String,
       email: json['email'] as String,
       profilePhotoUrl: json['profilePhotoUrl'] as String?,
       isOnline: json['isOnline'] as bool? ?? false,
