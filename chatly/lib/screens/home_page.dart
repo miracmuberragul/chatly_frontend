@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'messages_page.dart';
 import 'contact_screen.dart';
-//import 'settings_screen.dart'; // Ayarlar sayfan varsa
+import 'settings.dart'; // Ayarlar sayfan varsa
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,7 +17,7 @@ class _HomePageState extends State<HomePage> {
   final List<Widget> _pages = const [
     ContactScreen(),
     MessagesPage(),
-    Placeholder(),
+    SettingsScreen(),
   ];
 
   @override
