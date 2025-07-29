@@ -91,7 +91,10 @@ class FriendshipService {
       await _firestore
           .collection(_friendshipCollection)
           .doc(friendshipId)
-          .delete();
+          .update({
+            'status': 'rejected',
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
       log('Friend request rejected and deleted: $friendshipId');
     } catch (e) {
       log('Error rejecting friend request: $e');
