@@ -30,7 +30,11 @@ class _MessagesPageState extends State<MessagesPage> {
                 children: [
                   const Text(
                     'Messages',
-                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2F4156),
+                    ),
                   ),
                   const Spacer(),
                   IconButton(

@@ -71,149 +71,151 @@ class _ContactScreenState extends State<ContactScreen> {
         foregroundColor: const Color(0xFF2F4156),
         automaticallyImplyLeading: false,
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 🔍 Search bar
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 10.0,
-            ),
-            child: Theme(
-              data: Theme.of(
-                context,
-              ).copyWith(primaryColor: const Color(0xFF2F4156)),
-              child: TextField(
-                cursorColor: const Color(0xFF2F4156),
-                onChanged: _filterContacts,
-                decoration: InputDecoration(
-                  hintText: 'Search contacts...',
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: const BorderSide(
-                      color: Colors.grey,
-                      width: 1.5,
-                      style: BorderStyle.solid,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 🔍 Search bar
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 10.0,
+              ),
+              child: Theme(
+                data: Theme.of(
+                  context,
+                ).copyWith(primaryColor: const Color(0xFF2F4156)),
+                child: TextField(
+                  cursorColor: const Color(0xFF2F4156),
+                  onChanged: _filterContacts,
+                  decoration: InputDecoration(
+                    hintText: 'Search contacts...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: const BorderSide(
+                        color: Colors.grey,
+                        width: 1.5,
+                        style: BorderStyle.solid,
+                      ),
                     ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF2F4156),
-                      width: 2.0,
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF2F4156),
+                        width: 2.0,
+                      ),
                     ),
+                    filled: true,
+                    fillColor: Colors.grey[100],
                   ),
-                  filled: true,
-                  fillColor: Colors.grey[100],
                 ),
               ),
             ),
-          ),
 
-          // 🔗 "Requests" link
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 8.0,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const FriendRequestScreen(),
+            // 🔗 "Requests" link
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const FriendRequestScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'Requests',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2F4156),
+                        decoration: TextDecoration.underline,
                       ),
-                    );
-                  },
-                  child: const Text(
-                    'Requests',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF2F4156),
-                      decoration: TextDecoration.underline,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // 👥 Contact list
-          Expanded(
-            child: ListView.builder(
-              itemCount: filteredContacts.length,
-              itemBuilder: (context, index) {
-                final UserModel user = filteredContacts[index];
-                final alreadySent = sentRequests.contains(user.username);
+            // 👥 Contact list
+            Expanded(
+              child: ListView.builder(
+                itemCount: filteredContacts.length,
+                itemBuilder: (context, index) {
+                  final UserModel user = filteredContacts[index];
+                  final alreadySent = sentRequests.contains(user.username);
 
-                return ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFF2F4156),
-                    child: Icon(Icons.person, color: Colors.white),
-                  ),
-                  title: Text(user.username),
+                  return ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFF2F4156),
+                      child: Icon(Icons.person, color: Colors.white),
+                    ),
+                    title: Text(user.username),
 
-                  trailing: ElevatedButton(
-                    onPressed: alreadySent
-                        ? null
-                        : () async {
-                            try {
-                              final currentUser =
-                                  FirebaseAuth.instance.currentUser;
-                              List<String> ids = [currentUser!.uid, user.uid];
-                              // Firestore'a friend request gönder
-                              await friendshipService.sendFriendRequest(
-                                currentUser!.uid,
-                                user.uid,
-                              );
+                    trailing: ElevatedButton(
+                      onPressed: alreadySent
+                          ? null
+                          : () async {
+                              try {
+                                final currentUser =
+                                    FirebaseAuth.instance.currentUser;
+                                List<String> ids = [currentUser!.uid, user.uid];
+                                // Firestore'a friend request gönder
+                                await friendshipService.sendFriendRequest(
+                                  currentUser!.uid,
+                                  user.uid,
+                                );
 
-                              // UI'de güncelle
-                              setState(() {
-                                sentRequests.add(user.username);
-                              });
+                                // UI'de güncelle
+                                setState(() {
+                                  sentRequests.add(user.username);
+                                });
 
-                              // Bildirim
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Friend request sent to ${user.username}',
+                                // Bildirim
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Friend request sent to ${user.username}',
+                                    ),
+                                    duration: const Duration(seconds: 2),
                                   ),
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                            } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Failed to send request: $e'),
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: alreadySent
-                          ? Colors.grey
-                          : const Color(0xFF2F4156),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Failed to send request: $e'),
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: alreadySent
+                            ? Colors.grey
+                            : const Color(0xFF2F4156),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        alreadySent ? 'Sent' : 'Add',
+                        style: const TextStyle(color: Colors.white),
                       ),
                     ),
-                    child: Text(
-                      alreadySent ? 'Sent' : 'Add',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
