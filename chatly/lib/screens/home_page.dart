@@ -35,7 +35,7 @@ class _HomePageState extends State<HomePage> {
                 color: _selectedIndex == 0
                     ? Color(0xFF71D7E1)
                     : Color(0xFF2F4156),
-                size: 30,
+                size: 25,
               ),
               onPressed: () {
                 setState(() => _selectedIndex = 0);
@@ -47,7 +47,7 @@ class _HomePageState extends State<HomePage> {
                 color: _selectedIndex == 1
                     ? Color(0xFF71D7E1)
                     : Color(0xFF2F4156),
-                size: 30,
+                size: 25,
               ),
               onPressed: () {
                 setState(() => _selectedIndex = 1);
@@ -59,7 +59,7 @@ class _HomePageState extends State<HomePage> {
                 color: _selectedIndex == 2
                     ? Color(0xFF71D7E1)
                     : Color(0xFF2F4156),
-                size: 30,
+                size: 25,
               ),
               onPressed: () {
                 setState(() => _selectedIndex = 2);
