@@ -1,11 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FriendshipModel {
-  final String
-  id; // Belge ID'si (Firestore tarafından otomatik oluşturulabilir)
+  final String id;
   final String requesterId;
   final String receiverId;
-  final String status; // 'pending', 'accepted', 'rejected', 'blocked'
+  final String status; // Can be 'pending', 'accepted', or 'rejected'
   final Timestamp createdAt;
   final Timestamp? updatedAt;
 
