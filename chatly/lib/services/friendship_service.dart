@@ -9,7 +9,10 @@ class FriendshipService {
   final String _userCollection = 'users';
 
   /// Creates a unique chat document for two users if it doesn't already exist.
-  Future<String> createChatWithFriend(String currentUserId, String friendId) async {
+  Future<String> createChatWithFriend(
+    String currentUserId,
+    String friendId,
+  ) async {
     List<String> ids = [currentUserId, friendId];
     ids.sort();
     String chatId = ids.join('_');
@@ -39,8 +42,10 @@ class FriendshipService {
       List<String> ids = [requesterId, receiverId];
       ids.sort();
       final friendshipId = ids.join('_');
-      
-      final docRef = _firestore.collection(_friendshipCollection).doc(friendshipId);
+
+      final docRef = _firestore
+          .collection(_friendshipCollection)
+          .doc(friendshipId);
       final docSnapshot = await docRef.get();
 
       if (docSnapshot.exists) {
@@ -66,10 +71,13 @@ class FriendshipService {
   /// Accepts a pending friend request.
   Future<void> acceptFriendRequest(String friendshipId) async {
     try {
-      await _firestore.collection(_friendshipCollection).doc(friendshipId).update({
-        'status': 'accepted',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await _firestore
+          .collection(_friendshipCollection)
+          .doc(friendshipId)
+          .update({
+            'status': 'accepted',
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
       log('Friend request accepted: $friendshipId');
     } catch (e) {
       log('Error accepting friend request: $e');
@@ -80,7 +88,10 @@ class FriendshipService {
   /// Rejects a pending friend request by deleting it.
   Future<void> rejectFriendRequest(String friendshipId) async {
     try {
-      await _firestore.collection(_friendshipCollection).doc(friendshipId).delete();
+      await _firestore
+          .collection(_friendshipCollection)
+          .doc(friendshipId)
+          .delete();
       log('Friend request rejected and deleted: $friendshipId');
     } catch (e) {
       log('Error rejecting friend request: $e');
@@ -91,7 +102,10 @@ class FriendshipService {
   /// Deletes an existing friendship.
   Future<void> deleteFriendship(String friendshipId) async {
     try {
-      await _firestore.collection(_friendshipCollection).doc(friendshipId).delete();
+      await _firestore
+          .collection(_friendshipCollection)
+          .doc(friendshipId)
+          .delete();
       log('Friendship deleted: $friendshipId');
     } catch (e) {
       log('Error deleting friendship: $e');
@@ -107,8 +121,10 @@ class FriendshipService {
         .where('status', isEqualTo: 'pending')
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) => FriendshipModel.fromJson(doc.data())).toList();
-    });
+          return snapshot.docs
+              .map((doc) => FriendshipModel.fromJson(doc.data()))
+              .toList();
+        });
   }
 
   /// Streams accepted friends for a specific user.
@@ -116,33 +132,40 @@ class FriendshipService {
     return _firestore
         .collection(_friendshipCollection)
         .where('status', isEqualTo: 'accepted')
-        .where(Filter.or(Filter('requesterId', isEqualTo: userId), Filter('receiverId', isEqualTo: userId)))
+        .where(
+          Filter.or(
+            Filter('requesterId', isEqualTo: userId),
+            Filter('receiverId', isEqualTo: userId),
+          ),
+        )
         .snapshots()
         .asyncMap((snapshot) async {
-      if (snapshot.docs.isEmpty) return [];
+          if (snapshot.docs.isEmpty) return [];
 
-      final friendUids = <String>{};
-      for (var doc in snapshot.docs) {
-        final friendship = FriendshipModel.fromJson(doc.data());
-        if (friendship.requesterId == userId) {
-          friendUids.add(friendship.receiverId);
-        } else {
-          friendUids.add(friendship.requesterId);
-        }
-      }
+          final friendUids = <String>{};
+          for (var doc in snapshot.docs) {
+            final friendship = FriendshipModel.fromJson(doc.data());
+            if (friendship.requesterId == userId) {
+              friendUids.add(friendship.receiverId);
+            } else {
+              friendUids.add(friendship.requesterId);
+            }
+          }
 
-      if (friendUids.isEmpty) return [];
+          if (friendUids.isEmpty) return [];
 
-      // Fetch user profiles for all friends in a single query.
-      final friendsQuerySnapshot = await _firestore
-          .collection(_userCollection)
-          .where(FieldPath.documentId, whereIn: friendUids.toList())
-          .get();
+          // Fetch user profiles for all friends in a single query.
+          final friendsQuerySnapshot = await _firestore
+              .collection(_userCollection)
+              .where(FieldPath.documentId, whereIn: friendUids.toList())
+              .get();
 
-      return friendsQuerySnapshot.docs
-          .map((doc) => UserModel.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
-    });
+          return friendsQuerySnapshot.docs
+              .map(
+                (doc) => UserModel.fromJson(doc.data() as Map<String, dynamic>),
+              )
+              .toList();
+        });
   }
 
   // Tüm arkadaşlıkları listele (filtre yok)
