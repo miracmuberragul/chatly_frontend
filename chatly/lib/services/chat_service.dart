@@ -9,7 +9,7 @@ class ChatService {
   /// This listens for changes in the 'chats' collection where the user's ID
   /// is present in the 'members' array. It's ordered by the last message
   /// timestamp to show the most recent chats first.
-  Stream<List<Chat>> getChatsStream(String userId) {
+  Stream<List<ChatModel>> getChatsStream(String userId) {
     return _firestore
         .collection('chats')
         .where('members', arrayContains: userId)
@@ -17,7 +17,7 @@ class ChatService {
         .snapshots()
         .map((snapshot) {
           return snapshot.docs.map((doc) {
-            return Chat.fromFirestore(doc);
+            return ChatModel.fromFirestore(doc);
           }).toList();
         });
   }
