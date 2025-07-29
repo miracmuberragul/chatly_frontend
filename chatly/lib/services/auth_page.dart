@@ -94,7 +94,7 @@ class AuthPage {
 
         // ✅ Yönlendirme
         if (context.mounted) {
-          Navigator.pushReplacementNamed(context, '/messages');
+          Navigator.pushReplacementNamed(context, '/home');
         }
       }
     } on FirebaseAuthException catch (e) {
@@ -137,7 +137,7 @@ class AuthPage {
 
       // ✅ Yönlendirme
       if (context.mounted) {
-        Navigator.pushReplacementNamed(context, '/messages');
+        Navigator.pushReplacementNamed(context, '/home');
       }
     } on FirebaseAuthException catch (e) {
       debugPrint('Firebase Auth Error (Sign In): ${e.code} - ${e.message}');
