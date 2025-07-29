@@ -54,61 +54,48 @@ class _ContactScreenState extends State<ContactScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Padding(
-          padding: EdgeInsets.all(10.0),
-          child: Text(
-            'Add new contact',
-            style: TextStyle(
-              color: Color(0xFF2F4156),
-              fontSize: 30,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        centerTitle: false,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: const Color(0xFF2F4156),
-        automaticallyImplyLeading: false,
-      ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🔍 Search bar
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
-                vertical: 10.0,
+                vertical: 20,
               ),
-              child: Theme(
-                data: Theme.of(
-                  context,
-                ).copyWith(primaryColor: const Color(0xFF2F4156)),
-                child: TextField(
-                  cursorColor: const Color(0xFF2F4156),
-                  onChanged: _filterContacts,
-                  decoration: InputDecoration(
-                    hintText: 'Search contacts...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      borderSide: const BorderSide(
-                        color: Colors.grey,
-                        width: 1.5,
-                        style: BorderStyle.solid,
-                      ),
+              child: Row(
+                children: [
+                  const Text(
+                    'Add new contact',
+                    style: TextStyle(
+                      color: Color(0xFF2F4156),
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      borderSide: const BorderSide(
-                        color: Color(0xFF2F4156),
-                        width: 2.0,
-                      ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 5),
+            // 🔍 Search bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Search contact',
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: Colors.grey[200],
+                  border: OutlineInputBorder(
+                    borderSide: const BorderSide(color: Color(0xFF2F4156)),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: const BorderSide(
+                      color: Color(0xFF2F4156),
+                      width: 2,
                     ),
-                    filled: true,
-                    fillColor: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
               ),
