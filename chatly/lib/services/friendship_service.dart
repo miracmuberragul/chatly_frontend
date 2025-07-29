@@ -1,169 +1,148 @@
+import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/friendship_model.dart'; // FriendshipModel dosyanızın yolu
-import '../models/user_model.dart'; // UserModel dosyanızın yolu (arkadaşları getirirken gerekebilir)
+import '../models/friendship_model.dart';
+import '../models/user_model.dart';
 
 class FriendshipService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _friendshipCollection =
-      'friendships'; // Arkadaşlık koleksiyonu adı
-  final String _userCollection =
-      'users'; // Kullanıcı koleksiyonu adı (arkadaş bilgisi için)
+  final String _friendshipCollection = 'friendships';
+  final String _userCollection = 'users';
 
-  // Arkadaşlık isteği gönder
+  /// Creates a unique chat document for two users if it doesn't already exist.
+  Future<String> createChatWithFriend(String currentUserId, String friendId) async {
+    List<String> ids = [currentUserId, friendId];
+    ids.sort();
+    String chatId = ids.join('_');
+
+    final chatDocRef = _firestore.collection('chats').doc(chatId);
+    final chatSnapshot = await chatDocRef.get();
+
+    if (chatSnapshot.exists) {
+      log('Chat already exists: $chatId');
+      return chatId;
+    }
+
+    await chatDocRef.set({
+      'members': [currentUserId, friendId],
+      'lastMessage': '',
+      'lastMessageTimestamp': FieldValue.serverTimestamp(),
+    });
+    log('New chat created with ID: $chatId');
+    return chatId;
+  }
+
+  /// Sends a friend request from the requester to the receiver.
   Future<void> sendFriendRequest(String requesterId, String receiverId) async {
+    if (requesterId == receiverId) return;
     try {
-      // Kendine istek göndermeyi engelle
-      if (requesterId == receiverId) {
-        throw Exception('Cannot send friend request to yourself.');
+      // Use a consistent ID format for requests to prevent duplicates.
+      List<String> ids = [requesterId, receiverId];
+      ids.sort();
+      final friendshipId = ids.join('_');
+      
+      final docRef = _firestore.collection(_friendshipCollection).doc(friendshipId);
+      final docSnapshot = await docRef.get();
+
+      if (docSnapshot.exists) {
+        log('Friendship or request already exists: $friendshipId');
+        return; // Avoid creating a duplicate request.
       }
 
-      // Zaten bir istek var mı kontrol et (iki yönde de)
-      final existingRequest = await _firestore
-          .collection(_friendshipCollection)
-          .where('requesterId', isEqualTo: requesterId)
-          .where('receiverId', isEqualTo: receiverId)
-          .limit(1)
-          .get();
-
-      final existingRequestReverse = await _firestore
-          .collection(_friendshipCollection)
-          .where('requesterId', isEqualTo: receiverId)
-          .where('receiverId', isEqualTo: requesterId)
-          .limit(1)
-          .get();
-
-      if (existingRequest.docs.isNotEmpty ||
-          existingRequestReverse.docs.isNotEmpty) {
-        throw Exception(
-          'Friend request already exists or you are already friends.',
-        );
-      }
-
-      // Yeni istek oluştur
-      final docRef = _firestore.collection(_friendshipCollection).doc();
-      final friendship = FriendshipModel(
-        id: docRef.id,
-        requesterId: requesterId,
-        receiverId: receiverId,
-        status: 'pending',
-        createdAt: Timestamp.now(),
-      );
-      await docRef.set(friendship.toJson());
+      await docRef.set({
+        'id': friendshipId,
+        'requesterId': requesterId, // Keep track of who sent the request
+        'receiverId': receiverId,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': null,
+      });
+      log('Friend request sent from $requesterId to $receiverId');
     } catch (e) {
-      print('Error sending friend request: $e');
-      rethrow;
+      log('Error sending friend request: $e');
+      throw Exception('Failed to send friend request.');
     }
   }
 
-  // Arkadaşlık isteğini kabul et
+  /// Accepts a pending friend request.
   Future<void> acceptFriendRequest(String friendshipId) async {
     try {
-      await _firestore
-          .collection(_friendshipCollection)
-          .doc(friendshipId)
-          .update({'status': 'accepted', 'updatedAt': Timestamp.now()});
-      // Not: Bu noktada her iki kullanıcının da UserModel'lerindeki `friends`
-      // listesini güncellemeniz gerekebilir, eğer Firestore'da iki farklı belgeyi
-      // bağlamak istiyorsanız. Veya sadece FriendshipModel'e güvenebilirsiniz.
-      // Basitlik için sadece FriendshipModel'i güncelliyorum.
+      await _firestore.collection(_friendshipCollection).doc(friendshipId).update({
+        'status': 'accepted',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      log('Friend request accepted: $friendshipId');
     } catch (e) {
-      print('Error accepting friend request: $e');
-      rethrow;
+      log('Error accepting friend request: $e');
+      throw Exception('Failed to accept friend request.');
     }
   }
 
-  // Arkadaşlık isteğini reddet
+  /// Rejects a pending friend request by deleting it.
   Future<void> rejectFriendRequest(String friendshipId) async {
     try {
-      await _firestore
-          .collection(_friendshipCollection)
-          .doc(friendshipId)
-          .update({'status': 'rejected', 'updatedAt': Timestamp.now()});
+      await _firestore.collection(_friendshipCollection).doc(friendshipId).delete();
+      log('Friend request rejected and deleted: $friendshipId');
     } catch (e) {
-      print('Error rejecting friend request: $e');
-      rethrow;
+      log('Error rejecting friend request: $e');
+      throw Exception('Failed to reject friend request.');
     }
   }
 
-  // Arkadaşlığı sil/iptal et
+  /// Deletes an existing friendship.
   Future<void> deleteFriendship(String friendshipId) async {
     try {
-      await _firestore
-          .collection(_friendshipCollection)
-          .doc(friendshipId)
-          .delete();
+      await _firestore.collection(_friendshipCollection).doc(friendshipId).delete();
+      log('Friendship deleted: $friendshipId');
     } catch (e) {
-      print('Error deleting friendship: $e');
-      rethrow;
+      log('Error deleting friendship: $e');
+      throw Exception('Failed to delete friendship.');
     }
   }
 
-  // Bir kullanıcının bekleyen arkadaşlık isteklerini alıcı olarak getir
-  Stream<List<FriendshipModel>> getPendingRequestsForUser(String userId) {
+  /// Streams pending friend requests for a specific user (where they are the receiver).
+  Stream<List<FriendshipModel>> getPendingFriendRequests(String userId) {
     return _firestore
         .collection(_friendshipCollection)
         .where('receiverId', isEqualTo: userId)
         .where('status', isEqualTo: 'pending')
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => FriendshipModel.fromJson(doc.data()))
-              .toList(),
-        );
+        .map((snapshot) {
+      return snapshot.docs.map((doc) => FriendshipModel.fromJson(doc.data())).toList();
+    });
   }
 
-  // Bir kullanıcının gönderdiği bekleyen arkadaşlık isteklerini getir
-  Stream<List<FriendshipModel>> getSentPendingRequestsByUser(String userId) {
-    return _firestore
-        .collection(_friendshipCollection)
-        .where('requesterId', isEqualTo: userId)
-        .where('status', isEqualTo: 'pending')
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => FriendshipModel.fromJson(doc.data()))
-              .toList(),
-        );
-  }
-
-  // Bir kullanıcının kabul edilmiş arkadaşlarını getir
-  Stream<List<UserModel>> getAcceptedFriendsOfUser(String userId) {
+  /// Streams accepted friends for a specific user.
+  Stream<List<UserModel>> getAcceptedFriends(String userId) {
     return _firestore
         .collection(_friendshipCollection)
         .where('status', isEqualTo: 'accepted')
-        .where(
-          Filter.or(
-            Filter('requesterId', isEqualTo: userId),
-            Filter('receiverId', isEqualTo: userId),
-          ),
-        )
+        .where(Filter.or(Filter('requesterId', isEqualTo: userId), Filter('receiverId', isEqualTo: userId)))
         .snapshots()
         .asyncMap((snapshot) async {
-          final friendUids =
-              <String>{}; // Tekrar eden UID'leri önlemek için Set
-          for (var doc in snapshot.docs) {
-            final friendship = FriendshipModel.fromJson(doc.data());
-            if (friendship.requesterId == userId) {
-              friendUids.add(friendship.receiverId);
-            } else {
-              friendUids.add(friendship.requesterId);
-            }
-          }
+      if (snapshot.docs.isEmpty) return [];
 
-          if (friendUids.isEmpty) {
-            return [];
-          }
+      final friendUids = <String>{};
+      for (var doc in snapshot.docs) {
+        final friendship = FriendshipModel.fromJson(doc.data());
+        if (friendship.requesterId == userId) {
+          friendUids.add(friendship.receiverId);
+        } else {
+          friendUids.add(friendship.requesterId);
+        }
+      }
 
-          // Arkadaş UID'lerine göre kullanıcıları getir
-          final friendsQuerySnapshot = await _firestore
-              .collection(_userCollection)
-              .where(FieldPath.documentId, whereIn: friendUids.toList())
-              .get();
+      if (friendUids.isEmpty) return [];
 
-          return friendsQuerySnapshot.docs
-              .map((doc) => UserModel.fromJson(doc.data()!))
-              .toList();
-        });
+      // Fetch user profiles for all friends in a single query.
+      final friendsQuerySnapshot = await _firestore
+          .collection(_userCollection)
+          .where(FieldPath.documentId, whereIn: friendUids.toList())
+          .get();
+
+      return friendsQuerySnapshot.docs
+          .map((doc) => UserModel.fromJson(doc.data() as Map<String, dynamic>))
+          .toList();
+    });
   }
 
   // Tüm arkadaşlıkları listele (filtre yok)
