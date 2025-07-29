@@ -1,4 +1,8 @@
+import 'package:chatly/models/user_model.dart';
 import 'package:chatly/screens/friend_request_screen.dart';
+import 'package:chatly/services/friendship_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -11,21 +15,36 @@ class ContactScreen extends StatefulWidget {
 
 class _ContactScreenState extends State<ContactScreen> {
   String query = '';
-  List<String> allContacts = ['Berra', 'Mustafa', 'Ayşe', 'Mehmet'];
-  List<String> filteredContacts = [];
+  List<UserModel> allContacts = [];
+  List<UserModel> filteredContacts = [];
   Set<String> sentRequests = {}; // 🔹 Gönderilen istekleri takip
-
+  final friendshipService = FriendshipService();
   @override
   void initState() {
     super.initState();
-    filteredContacts = allContacts;
+    _loadContacts(); // 🔹 Kontakları yükle
+  }
+
+  void _loadContacts() {
+    // 🔹 Burada Firestore'dan kullanıcıları yükleyin
+    // Örnek olarak, tüm kullanıcıları alıyoruz
+    FirebaseFirestore.instance.collection('users').get().then((snapshot) {
+      setState(() {
+        allContacts = snapshot.docs
+            .map((doc) => UserModel.fromJson(doc.data()))
+            .toList();
+        filteredContacts = allContacts;
+      });
+    });
   }
 
   void _filterContacts(String input) {
     setState(() {
       query = input;
       filteredContacts = allContacts
-          .where((name) => name.toLowerCase().contains(input.toLowerCase()))
+          .where(
+            (user) => user.username.toLowerCase().contains(input.toLowerCase()),
+          )
           .toList();
     });
   }
@@ -130,29 +149,52 @@ class _ContactScreenState extends State<ContactScreen> {
             child: ListView.builder(
               itemCount: filteredContacts.length,
               itemBuilder: (context, index) {
-                final name = filteredContacts[index];
-                final alreadySent = sentRequests.contains(name);
+                final UserModel user = filteredContacts[index];
+                final alreadySent = sentRequests.contains(user.username);
 
                 return ListTile(
                   leading: const CircleAvatar(
                     backgroundColor: Color(0xFF2F4156),
                     child: Icon(Icons.person, color: Colors.white),
                   ),
-                  title: Text(name),
+                  title: Text(user.username),
+
                   trailing: ElevatedButton(
                     onPressed: alreadySent
                         ? null
-                        : () {
-                            setState(() {
-                              sentRequests.add(name);
-                            });
+                        : () async {
+                            try {
+                              final currentUser =
+                                  FirebaseAuth.instance.currentUser;
+                              List<String> ids = [currentUser!.uid, user.uid];
+                              // Firestore'a friend request gönder
+                              await friendshipService.sendFriendRequest(
+                                currentUser!.uid,
+                                user.uid,
+                              );
 
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Friend request sent to $name'),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
+                              // UI'de güncelle
+                              setState(() {
+                                sentRequests.add(user.username);
+                              });
+
+                              // Bildirim
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Friend request sent to ${user.username}',
+                                  ),
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to send request: $e'),
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: alreadySent
@@ -172,38 +214,6 @@ class _ContactScreenState extends State<ContactScreen> {
             ),
           ),
         ],
-      ),
-      bottomNavigationBar: BottomAppBar(
-        color: Colors.white,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            IconButton(
-              icon: const Icon(
-                FontAwesomeIcons.users,
-                color: Color(0xFF71D7E1),
-                size: 30,
-              ),
-              onPressed: () {},
-            ),
-            IconButton(
-              icon: const Icon(
-                FontAwesomeIcons.solidMessage,
-                color: Color(0xFF2F4156),
-                size: 30,
-              ),
-              onPressed: () {},
-            ),
-            IconButton(
-              icon: const Icon(
-                FontAwesomeIcons.gear,
-                color: Color(0xFF2F4156),
-                size: 30,
-              ),
-              onPressed: () {},
-            ),
-          ],
-        ),
       ),
     );
   }
