@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'chat_screen.dart'; // ChatScreen dosyanı import etmeyi unutma
+import 'chat_screen.dart';
 
 class MessagesPage extends StatefulWidget {
   const MessagesPage({super.key});
