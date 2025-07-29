@@ -133,8 +133,20 @@ class _AuthScreenState extends State<AuthScreen> {
                     _socialLoginButton(
                       logoPath: 'assets/images/apple.png',
                       label: 'Sign in with Apple',
-                      onTap: () {
-                        debugPrint("Apple Login Tapped");
+
+                      onTap: () async {
+                        print("Apple Login Tapped");
+                        try {
+                          final userCredential = await _appleAuthPage
+                              .signInWithApple();
+                          print(
+                            'Apple Sign-In başarılı: ${userCredential.user?.email}',
+                          );
+                          // Giriş sonrası yönlendirme veya state güncelle
+                        } catch (e) {
+                          print('Apple Sign-In hatası: $e');
+                          // Hata mesajı gösterebilirsin
+                        }
                       },
                     ),
 
