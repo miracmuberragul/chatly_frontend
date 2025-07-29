@@ -108,40 +108,6 @@ class _MessagesPageState extends State<MessagesPage> {
           ],
         ),
       ),
-
-      //  Alt Navigation Bar
-      bottomNavigationBar: BottomAppBar(
-        color: Colors.white,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            IconButton(
-              icon: const Icon(
-                FontAwesomeIcons.users,
-                color: Color(0xFF2F4156),
-                size: 30,
-              ),
-              onPressed: () {},
-            ),
-            IconButton(
-              icon: const Icon(
-                FontAwesomeIcons.solidMessage,
-                color: Color(0xFF71D7E1),
-                size: 30,
-              ),
-              onPressed: () {},
-            ),
-            IconButton(
-              icon: const Icon(
-                FontAwesomeIcons.gear,
-                color: Color(0xFF2F4156),
-                size: 30,
-              ),
-              onPressed: () {},
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
