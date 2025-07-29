@@ -1,40 +1,20 @@
-// lib/services/auth_page.dart
-
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
-class AuthPage extends StatefulWidget {
-  const AuthPage({super.key});
-
-  @override
-  State<AuthPage> createState() => _AuthPageState();
-}
-//e-posta ve şifre girişlerini tutuyor
-class _AuthPageState extends State<AuthPage> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  bool _isLogin = true;
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  // Google Sign-In
+class AuthPage {
   Future<void> signInWithGoogle(BuildContext context) async {
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn(); //google seçtik
+      final GoogleSignInAccount? googleUser = await GoogleSignIn()
+          .signIn(); //google seçtik
       if (googleUser == null) {
         // User canceled the sign-in, no action needed
         return;
       }
 
       final googleAuth = await googleUser.authentication;
-//kimlik bilgileri alınıyor ve firebasele kimlik doğrulaması yapılıyor
+      //kimlik bilgileri alınıyor ve firebasele kimlik doğrulaması yapılıyor
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -65,7 +45,6 @@ class _AuthPageState extends State<AuthPage> {
         }
       }
     } on FirebaseAuthException catch (e) {
-      
       debugPrint('Firebase Auth Error: ${e.code} - ${e.message}');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -78,7 +57,6 @@ class _AuthPageState extends State<AuthPage> {
         );
       }
     } catch (e) {
-      
       debugPrint('Google Sign-In General Error: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -92,23 +70,30 @@ class _AuthPageState extends State<AuthPage> {
   }
 
   // Email/Password Sign-Up (üye kayıt)
-  Future<void> signUpWithEmailPassword(BuildContext context) async {
+  Future<void> signUpWithEmailPassword(
+    BuildContext context,
+    String email,
+    String password,
+    String username,
+  ) async {
     try {
       final userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text.trim(),
-          );
+          .createUserWithEmailAndPassword(email: email, password: password);
       final user = userCredential.user;
 
       if (user != null) {
-        // Save user details to Firestore
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'uid': user.uid,
           'email': user.email,
+          'username': username,
           'createdAt': FieldValue.serverTimestamp(),
         });
         debugPrint('New user signed up with email: ${user.email}');
+
+        // ✅ Yönlendirme
+        if (context.mounted) {
+          Navigator.pushReplacementNamed(context, '/messages');
+        }
       }
     } on FirebaseAuthException catch (e) {
       debugPrint('Firebase Auth Error (Sign Up): ${e.code} - ${e.message}');
@@ -136,13 +121,22 @@ class _AuthPageState extends State<AuthPage> {
   }
 
   // Email/Password Sign-In(giriş)
-  Future<void> signInWithEmailPassword(BuildContext context) async {
+  Future<void> signInWithEmailPassword(
+    BuildContext context,
+    String email,
+    String password,
+  ) async {
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        email: email,
+        password: password,
       );
-      debugPrint('User signed in with email: ${_emailController.text}');
+      debugPrint('User signed in with email: $email');
+
+      // ✅ Yönlendirme
+      if (context.mounted) {
+        Navigator.pushReplacementNamed(context, '/messages');
+      }
     } on FirebaseAuthException catch (e) {
       debugPrint('Firebase Auth Error (Sign In): ${e.code} - ${e.message}');
       if (context.mounted) {
@@ -178,12 +172,4 @@ class _AuthPageState extends State<AuthPage> {
       debugPrint('Sign-out error: $e');
     }
   }
-  
-  @override
-  Widget build(BuildContext context) {
-    // TODO: implement build
-    throw UnimplementedError();
-  }
-
-  
-  }
+}

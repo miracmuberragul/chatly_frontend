@@ -42,8 +42,8 @@ dependencies:
   firebase_auth: ^5.7.0
   crypto: ^3.0.6
   sign_in_with_apple: ^7.0.1
-  line_awesome_flutter: ^3.0.1
-
+  font_awesome_flutter: ^10.8.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
