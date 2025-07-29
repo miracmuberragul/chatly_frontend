@@ -11,15 +11,15 @@ class UserService {
   Future<void> createUser(UserModel user) async {
     try {
       // Use the user's 'id' as the document ID.
-      final docRef = _usersCollection.doc(user.id);
+      final docRef = _usersCollection.doc(user.uid);
       final docSnapshot = await docRef.get();
 
       if (!docSnapshot.exists) {
         // If the user does not exist, create the document.
         await docRef.set(user.toJson());
-        log('User created successfully with ID: ${user.id}');
+        log('User created successfully with ID: ${user.uid}');
       } else {
-        log('User with ID ${user.id} already exists.');
+        log('User with ID ${user.uid} already exists.');
       }
     } catch (e) {
       log('Error creating user: $e');

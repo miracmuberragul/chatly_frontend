@@ -57,13 +57,13 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.check, color: Color(0xFF2F4156)),
-                        onPressed: () {
+                        onPressed: () async {
                           // Kabul et
                         },
                       ),
                       IconButton(
                         icon: const Icon(Icons.close, color: Color(0xFF2F4156)),
-                        onPressed: () {
+                        onPressed: () async {
                           // Reddet
                         },
                       ),
