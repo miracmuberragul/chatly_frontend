@@ -20,6 +20,7 @@ class AddChatContactPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Contacts'),
         centerTitle: true,
