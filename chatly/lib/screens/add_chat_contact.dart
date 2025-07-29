@@ -1,21 +1,32 @@
+import 'package:chatly/models/user_model.dart';
+import 'package:chatly/services/user_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'chat_screen.dart';
 
-//  model class
-class ChatUser {
-  final String name;
-  const ChatUser({required this.name});
-}
-
-class AddChatContactPage extends StatelessWidget {
+class AddChatContactPage extends StatefulWidget {
   const AddChatContactPage({super.key});
 
-  //  veri (database gelene kadar kullanılacak)
-  final Map<String, List<ChatUser>> groupedUsers = const {
-    'A': [ChatUser(name: 'AHMET'), ChatUser(name: 'AHMET2')],
-    'B': [ChatUser(name: 'BETÜL')],
-    'C': [ChatUser(name: 'CELİLE')],
-  };
+  @override
+  State<AddChatContactPage> createState() => _AddChatContactPageState();
+}
+
+class _AddChatContactPageState extends State<AddChatContactPage> {
+  final UserService _userService = UserService();
+  final String _currentUserId = FirebaseAuth.instance.currentUser!.uid;
+
+  Map<String, List<UserModel>> _groupUsers(List<UserModel> users) {
+    final Map<String, List<UserModel>> groupedUsers = {};
+    for (var user in users) {
+            if (user.uid == _currentUserId) continue; // Don't show current user
+                  final String firstLetter = (user.username != null && user.username!.isNotEmpty) ? user.username!.substring(0, 1).toUpperCase() : '#';
+      if (groupedUsers[firstLetter] == null) {
+        groupedUsers[firstLetter] = [];
+      }
+      groupedUsers[firstLetter]!.add(user);
+    }
+    return groupedUsers;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +44,7 @@ class AddChatContactPage extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            //  Search Bar
+            // Search Bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: TextField(
@@ -50,58 +61,66 @@ class AddChatContactPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-
-            //  Kişi Listesi
+            // User List
             Expanded(
-              child: ListView.builder(
-                itemCount: groupedUsers.length,
-                itemBuilder: (context, index) {
-                  String letter = groupedUsers.keys.elementAt(index);
-                  List<ChatUser> users = groupedUsers[letter]!;
+              child: StreamBuilder<List<UserModel>>(
+                                stream: _userService.getUsersStream(_currentUserId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(child: Text('No users found.'));
+                  }
 
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          letter,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        ...users.map(
-                          (user) => GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ChatScreen(
-                                    userName: user.name,
-                                    isOnline: true,
-                                    profileImageUrl:
-                                        "https://via.placeholder.com/150",
-                                  ),
-                                ),
-                              );
-                            },
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              margin: const EdgeInsets.only(bottom: 8),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.black),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(user.name),
+                  final groupedUsers = _groupUsers(snapshot.data!);
+                  final sortedKeys = groupedUsers.keys.toList()..sort();
+
+                  return ListView.builder(
+                    itemCount: sortedKeys.length,
+                    itemBuilder: (context, index) {
+                      final letter = sortedKeys[index];
+                      final users = groupedUsers[letter]!;
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              letter,
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
-                          ),
+                            const SizedBox(height: 8),
+                            ...users.map(
+                              (user) => ListTile(
+                                leading: CircleAvatar(
+                                                                    backgroundImage: NetworkImage(user.profilePhotoUrl ?? 'https://via.placeholder.com/150'),
+                                ),
+                                                                                                title: Text(user.username ?? 'Unnamed User'),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ChatScreen(
+                                        otherUserId: user.uid,
+                                        username: user.username ?? 'Unnamed User',
+                                        isOnline: user.isOnline,
+                                        profilePhotoUrl: user.profilePhotoUrl ?? 'https://via.placeholder.com/150',
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 },
               ),

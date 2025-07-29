@@ -34,97 +34,150 @@ class FriendshipService {
     return chatId;
   }
 
-  /// Sends a friend request from the requester to the receiver.
-  Future<void> sendFriendRequest(String requesterId, String receiverId) async {
-    if (requesterId == receiverId) return;
+  Future<void> sendFriendRequest({
+    required String requesterId,
+    required String receiverId,
+  }) async {
     try {
-      // Use a consistent ID format for requests to prevent duplicates.
-      List<String> ids = [requesterId, receiverId];
-      ids.sort();
-      final friendshipId = ids.join('_');
-
-      final docRef = _firestore
-          .collection(_friendshipCollection)
-          .doc(friendshipId);
-      final docSnapshot = await docRef.get();
-
-      if (docSnapshot.exists) {
-        log('Friendship or request already exists: $friendshipId');
-        return; // Avoid creating a duplicate request.
-      }
-
-      await docRef.set({
-        'id': friendshipId,
-        'requesterId': requesterId, // Keep track of who sent the request
+      final friendshipDoc = {
+        'requesterId': requesterId,
         'receiverId': receiverId,
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': null,
-      });
-      log('Friend request sent from $requesterId to $receiverId');
+        'memberIds': [requesterId, receiverId],
+      };
+      await _firestore.collection(_friendshipCollection).add(friendshipDoc);
     } catch (e) {
       log('Error sending friend request: $e');
-      throw Exception('Failed to send friend request.');
+      rethrow;
     }
   }
 
-  /// Accepts a pending friend request.
-  Future<void> acceptFriendRequest(String friendshipId) async {
-    try {
-      await _firestore
-          .collection(_friendshipCollection)
-          .doc(friendshipId)
-          .update({
-            'status': 'accepted',
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-      log('Friend request accepted: $friendshipId');
-    } catch (e) {
-      log('Error accepting friend request: $e');
-      throw Exception('Failed to accept friend request.');
-    }
-  }
-
-  /// Rejects a pending friend request by deleting it.
-  Future<void> rejectFriendRequest(String friendshipId) async {
-    try {
-      await _firestore
-          .collection(_friendshipCollection)
-          .doc(friendshipId)
-          .delete();
-      log('Friend request rejected and deleted: $friendshipId');
-    } catch (e) {
-      log('Error rejecting friend request: $e');
-      throw Exception('Failed to reject friend request.');
-    }
-  }
-
-  /// Deletes an existing friendship.
-  Future<void> deleteFriendship(String friendshipId) async {
-    try {
-      await _firestore
-          .collection(_friendshipCollection)
-          .doc(friendshipId)
-          .delete();
-      log('Friendship deleted: $friendshipId');
-    } catch (e) {
-      log('Error deleting friendship: $e');
-      throw Exception('Failed to delete friendship.');
-    }
-  }
-
-  /// Streams pending friend requests for a specific user (where they are the receiver).
-  Stream<List<FriendshipModel>> getPendingFriendRequests(String userId) {
+  Stream<List<QueryDocumentSnapshot>> getFriendRequests(String userId) {
     return _firestore
         .collection(_friendshipCollection)
         .where('receiverId', isEqualTo: userId)
         .where('status', isEqualTo: 'pending')
         .snapshots()
+        .map((snapshot) => snapshot.docs);
+  }
+
+  Future<void> updateFriendshipStatus({
+    required String docId,
+    required String status,
+  }) async {
+    try {
+      await _firestore.collection(_friendshipCollection).doc(docId).update({'status': status});
+    } catch (e) {
+      log('Error updating friendship status: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> removeFriend({
+    required String userId,
+    required String friendId,
+  }) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection(_friendshipCollection)
+          .where('memberIds', whereIn: [
+        [userId, friendId],
+        [friendId, userId]
+      ]).get();
+
+      for (final doc in querySnapshot.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      log('Error removing friend: $e');
+      rethrow;
+    }
+  }
+
+  Stream<bool> areFriends(String userId1, String userId2) {
+    return _firestore
+        .collection(_friendshipCollection)
+        .where('status', isEqualTo: 'accepted')
+        .where('memberIds', whereIn: [
+          [userId1, userId2],
+          [userId2, userId1]
+        ])
+        .snapshots()
         .map((snapshot) {
-          return snapshot.docs
-              .map((doc) => FriendshipModel.fromJson(doc.data()))
-              .toList();
+          return snapshot.docs.isNotEmpty;
         });
+  }
+
+  Future<void> acceptFriendRequest(String requesterId, String receiverId) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection(_friendshipCollection)
+          .where('requesterId', isEqualTo: requesterId)
+          .where('receiverId', isEqualTo: receiverId)
+          .where('status', isEqualTo: 'pending')
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final docId = querySnapshot.docs.first.id;
+        await _firestore.collection(_friendshipCollection).doc(docId).update({'status': 'accepted'});
+      }
+    } catch (e) {
+      log('Error accepting friend request: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> declineFriendRequest(String requesterId, String receiverId) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection(_friendshipCollection)
+          .where('requesterId', isEqualTo: requesterId)
+          .where('receiverId', isEqualTo: receiverId)
+          .where('status', isEqualTo: 'pending')
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final docId = querySnapshot.docs.first.id;
+        await _firestore.collection(_friendshipCollection).doc(docId).delete();
+      }
+    } catch (e) {
+      log('Error declining friend request: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<UserModel>> getIncomingPendingFriendRequestsAsUsers(
+    String currentUserId,
+  ) async {
+    try {
+      final friendRequestSnapshot = await _firestore
+          .collection(_friendshipCollection)
+          .where('receiverId', isEqualTo: currentUserId)
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      if (friendRequestSnapshot.docs.isEmpty) {
+        return [];
+      }
+
+      final requesterIds = friendRequestSnapshot.docs
+          .map((doc) => doc.data()['requesterId'] as String)
+          .toList();
+
+      final userQuerySnapshot = await _firestore
+          .collection(_userCollection)
+          .where(FieldPath.documentId, whereIn: requesterIds)
+          .get();
+      return userQuerySnapshot.docs
+          .map((doc) => UserModel.fromJson(doc.data()))
+          .toList();
+    } catch (e) {
+      log('Error fetching incoming friend requests as users: $e');
+      return [];
+    }
   }
 
   /// Streams accepted friends for a specific user.
@@ -162,7 +215,7 @@ class FriendshipService {
 
           return friendsQuerySnapshot.docs
               .map(
-                (doc) => UserModel.fromJson(doc.data() as Map<String, dynamic>),
+                (doc) => UserModel.fromJson(doc.data()),
               )
               .toList();
         });

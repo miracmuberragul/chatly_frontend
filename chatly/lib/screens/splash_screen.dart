@@ -23,10 +23,12 @@ class _SplashScreenState extends State<SplashScreen>
     )..forward();
 
     Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const AuthScreen()),
-      );
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AuthScreen()),
+        );
+      }
     });
 
     _animation = Tween<double>(

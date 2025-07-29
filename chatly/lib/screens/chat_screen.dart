@@ -1,16 +1,25 @@
+import 'package:chatly/models/message_model.dart';
+import 'package:chatly/services/message_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import 'package:intl/intl.dart';
+import 'package:chatly/services/socket_service.dart';
 
 class ChatScreen extends StatefulWidget {
-  final String userName;
+  final String otherUserId;
+  final String username;
   final bool isOnline;
-  final String profileImageUrl;
+  final String profilePhotoUrl;
 
   const ChatScreen({
     super.key,
-    required this.userName,
+    required this.otherUserId,
+    required this.username,
     required this.isOnline,
-    required this.profileImageUrl,
+    required this.profilePhotoUrl,
   });
 
   @override
@@ -18,36 +27,87 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final TextEditingController _controller = TextEditingController();
+  final SocketService _socketService = SocketService();
+  bool _isOtherUserTyping = false;
+  StreamSubscription? _socketSubscription;
+  Timer? _typingTimer;
 
-  // Mesaj listesi
-  final List<Map<String, dynamic>> messages = [
-    {
-      "text": "Merhaba!",
-      "isMe": false,
-      "time": DateFormat.Hm().format(DateTime.now()),
-      "seen": true,
-    },
-    {
-      "text": "Selam, nasılsın?",
-      "isMe": true,
-      "time": DateFormat.Hm().format(DateTime.now()),
-      "seen": true,
-    },
-  ];
+  final TextEditingController _controller = TextEditingController();
+  final MessageService _messageService = MessageService();
+  final String _currentUserId = FirebaseAuth.instance.currentUser!.uid;
+  late final String _chatId;
+
+  @override
+  void initState() {
+    super.initState();
+    List<String> ids = [_currentUserId, widget.otherUserId];
+    ids.sort();
+    _chatId = ids.join('_');
+
+    _markMessagesAsSeen();
+
+    _socketSubscription = _socketService.events.listen((event) {
+      if (event['type'] == 'typing' &&
+          event['payload']['chatId'] == _chatId &&
+          event['payload']['userId'] != _currentUserId) {
+        if (mounted) {
+          setState(() {
+            _isOtherUserTyping = true;
+          });
+        }
+        _typingTimer?.cancel();
+        _typingTimer = Timer(const Duration(seconds: 2), () {
+          if (mounted) {
+            setState(() {
+              _isOtherUserTyping = false;
+            });
+          }
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _socketSubscription?.cancel();
+    _typingTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTyping() {
+    _socketService.sendEvent('typing', {
+      'chatId': _chatId,
+      'userId': _currentUserId,
+    });
+  }
 
   void _sendMessage() {
-    String message = _controller.text.trim();
-    if (message.isEmpty) return;
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
 
-    setState(() {
-      messages.add({
-        "text": message,
-        "isMe": true,
-        "time": DateFormat.Hm().format(DateTime.now()),
-        "seen": false, // yeni mesaj çift tıklanmadı
-      });
-      _controller.clear();
+        _messageService.sendMessage(
+      chatId: _chatId,
+      senderId: _currentUserId,
+      otherUserId: widget.otherUserId, // Pass the other user's ID
+      text: text,
+    );
+    _controller.clear();
+  }
+
+  void _markMessagesAsSeen() {
+    // Listen to the stream of messages, take the first list that comes through,
+    // and mark any unread messages as seen.
+    _messageService.getMessagesStream(_chatId).first.then((messages) {
+      for (final message in messages) {
+        if (message.senderId != _currentUserId && !message.seenBy.contains(_currentUserId)) {
+          _messageService.markMessageAsSeen(
+            chatId: _chatId,
+            messageId: message.id,
+            userId: _currentUserId,
+          );
+        }
+      }
     });
   }
 
@@ -68,23 +128,17 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundImage: NetworkImage(widget.profileImageUrl),
+              backgroundImage: NetworkImage(widget.profilePhotoUrl),
               backgroundColor: Colors.grey[300],
             ),
             const SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(widget.username, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 Text(
-                  widget.userName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  widget.isOnline ? 'online' : 'offline',
-                  style: const TextStyle(fontSize: 12),
+                  _isOtherUserTyping ? 'typing...' : (widget.isOnline ? 'online' : 'offline'),
+                  style: TextStyle(fontSize: 12, fontStyle: _isOtherUserTyping ? FontStyle.italic : FontStyle.normal, color: Colors.white70),
                 ),
               ],
             ),
@@ -93,97 +147,91 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          //  Mesajlar
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final message = messages[index];
-                final bool isMe = message["isMe"];
-                final String text = message["text"];
-                final String time = message["time"];
-                final bool seen = message["seen"];
+            child: StreamBuilder<List<MessageModel>>(
+              stream: _messageService.getMessagesStream(_chatId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(child: Text('Say hi!'));
+                }
 
-                return Align(
-                  alignment: isMe
-                      ? Alignment.centerRight
-                      : Alignment.centerLeft,
-                  child: Container(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.7,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isMe ? myColor.withOpacity(0.9) : Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          text,
-                          style: TextStyle(
-                            color: isMe ? Colors.white : Colors.black,
-                            fontSize: 16,
-                          ),
+                final messages = snapshot.data!;
+                return ListView.builder(
+                  reverse: true, // To show latest messages at the bottom
+                  padding: const EdgeInsets.all(16),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    final bool isMe = message.senderId == _currentUserId;
+                    final bool seen = message.seenBy.length > 1;
+
+                    return Align(
+                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(
+                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isMe ? myColor.withAlpha((255 * 0.9).round()) : Colors.white,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              time,
-                              style: TextStyle(
-                                color: isMe ? Colors.white70 : Colors.grey[600],
-                                fontSize: 12,
-                              ),
+                              message.text,
+                              style: TextStyle(color: isMe ? Colors.white : Colors.black, fontSize: 16),
                             ),
-                            const SizedBox(width: 4),
-                            if (isMe)
-                              Icon(
-                                seen ? Icons.done_all : Icons.check,
-                                size: 16,
-                                color: seen ? Colors.white : Colors.white70,
-                              ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  DateFormat.Hm().format(message.timestamp.toDate()),
+                                  style: TextStyle(color: isMe ? Colors.white70 : Colors.grey[600], fontSize: 12),
+                                ),
+                                const SizedBox(width: 4),
+                                if (isMe)
+                                  Icon(
+                                    seen ? Icons.done_all : Icons.check,
+                                    size: 16,
+                                    color: seen ? Colors.blue[400] : Colors.white70,
+                                  ),
+                              ],
+                            ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
           ),
-
-          //  Mesaj Gönderme Alanı
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             color: Colors.white,
             child: Row(
               children: [
-                IconButton(
-                  icon: Icon(Icons.photo, color: myColor),
-                  onPressed: () {},
-                ),
+                IconButton(icon: Icon(Icons.photo, color: myColor), onPressed: () {}),
                 Expanded(
                   child: TextField(
+                    onChanged: (value) {
+                      _onTyping();
+                    },
                     controller: _controller,
                     decoration: InputDecoration(
                       hintText: "Type a message",
                       filled: true,
                       fillColor: Colors.grey[200],
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25),
-                        borderSide: BorderSide.none,
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
                     ),
                     onSubmitted: (_) => _sendMessage(),
                   ),
@@ -191,10 +239,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 const SizedBox(width: 8),
                 CircleAvatar(
                   backgroundColor: myColor,
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white),
-                    onPressed: _sendMessage,
-                  ),
+                  child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _sendMessage),
                 ),
               ],
             ),

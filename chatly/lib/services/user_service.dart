@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 
 class UserService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final CollectionReference _usersCollection = FirebaseFirestore.instance
       .collection('users');
 
@@ -11,15 +10,15 @@ class UserService {
   Future<void> createUser(UserModel user) async {
     try {
       // Use the user's 'id' as the document ID.
-      final docRef = _usersCollection.doc(user.id);
+            final docRef = _usersCollection.doc(user.uid);
       final docSnapshot = await docRef.get();
 
       if (!docSnapshot.exists) {
         // If the user does not exist, create the document.
         await docRef.set(user.toJson());
-        log('User created successfully with ID: ${user.id}');
+                log('User created successfully with ID: ${user.uid}');
       } else {
-        log('User with ID ${user.id} already exists.');
+                log('User with ID ${user.uid} already exists.');
       }
     } catch (e) {
       log('Error creating user: $e');
@@ -28,7 +27,7 @@ class UserService {
   }
 
   /// Fetches a user's profile information by their unique ID.
-  Future<UserModel?> getUserById(String userId) async {
+  Future<UserModel?> getUser(String userId) async {
     try {
       final docSnapshot = await _usersCollection.doc(userId).get();
 
@@ -44,11 +43,25 @@ class UserService {
   }
 
   /// Gets all users as a stream.
-  Stream<List<UserModel>> getUsersStream() {
-    return _usersCollection.snapshots().map((snapshot) {
+  Stream<List<UserModel>> getUsersStream(String currentUserId) {
+    return _usersCollection
+        .where('uid', isNotEqualTo: currentUserId) // Exclude the current user
+        .snapshots()
+        .map((snapshot) {
       return snapshot.docs.map((doc) {
         return UserModel.fromJson(doc.data() as Map<String, dynamic>);
       }).toList();
     });
+  }
+
+  /// Updates the online status of a user.
+  Future<void> updateUserOnlineStatus(String userId, bool isOnline) async {
+    try {
+      await _usersCollection.doc(userId).update({'isOnline': isOnline});
+      log('Updated online status for user $userId to $isOnline');
+    } catch (e) {
+      log('Error updating user online status: $e');
+      // Depending on the use case, you might want to rethrow the error.
+    }
   }
 }

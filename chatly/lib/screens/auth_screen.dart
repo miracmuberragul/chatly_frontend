@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:chatly/services/apple_auth_page.dart';
 import 'package:flutter/material.dart';
 import 'package:chatly/services/auth_page.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -156,22 +156,16 @@ class _AuthScreenState extends State<AuthScreen> {
                     _socialLoginButton(
                       logoPath: 'assets/images/apple.png',
                       label: 'Sign in with Apple',
-                      onTap: () {
-                        onTap:
-                        () async {
-                          try {
-                            final userCredential = await _appleAuthPage
-                                .signInWithApple();
-                            print(
-                              'Apple Sign-In başarılı: ${userCredential.user?.email}',
-                            );
-                            // Giriş sonrası yönlendirme veya state güncelle
-                          } catch (e) {
-                            print('Apple Sign-In hatası: $e');
-                            // Hata mesajı gösterebilirsin
-                          }
-                        };
-                        debugPrint("Apple Login Tapped");
+                      onTap: () async {
+                        try {
+                          debugPrint("Apple Login Tapped");
+                          final userCredential = await _appleAuthPage.signInWithApple();
+                          debugPrint('Apple Sign-In başarılı: ${userCredential.user?.email}');
+                          // Giriş sonrası yönlendirme veya state güncelle
+                        } catch (e) {
+                          debugPrint('Apple Sign-In hatası: $e');
+                          // Hata mesajı gösterebilirsin
+                        }
                       },
                     ),
 
@@ -235,7 +229,7 @@ class _AuthScreenState extends State<AuthScreen> {
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.3),
+              color: Colors.grey.withAlpha((255 * 0.3).round()),
               blurRadius: 6,
               offset: const Offset(0, 3),
             ),

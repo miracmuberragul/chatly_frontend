@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 // AuthPage'inizi doğru yoldan import ettiğinizden emin olun.
 // Eğer AuthPage, lib/services/auth_page.dart konumundaysa, bu import doğrudur.
-import 'package:chatly/services/auth_page.dart';
+
 import 'package:chatly/screens/messages_page.dart';
 import 'package:chatly/screens/add_chat_contact.dart';
 

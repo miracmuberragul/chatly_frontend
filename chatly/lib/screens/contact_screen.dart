@@ -15,7 +15,7 @@ class ContactScreen extends StatelessWidget {
           child: const Text(
             'Add new contact',
             style: TextStyle(
-              color: const Color(0xFF2F4156),
+              color: Color(0xFF2F4156),
               fontSize: 30,
               fontWeight: FontWeight.bold,
             ),
