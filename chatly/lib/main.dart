@@ -37,7 +37,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => const SplashScreen(),
         '/messages': (context) => const MessagesPage(),
-        '/contacts': (context) => const ContactsPage(),
+        '/contacts': (context) => const AddChatContactPage(),
       },
     );
   }

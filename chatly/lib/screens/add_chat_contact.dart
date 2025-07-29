@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 
-class ContactsPage extends StatelessWidget {
-  const ContactsPage({super.key});
+//  model class
+class ChatUser {
+  final String name;
+  const ChatUser({required this.name});
+}
 
-  final Map<String, List<String>> groupedContacts = const {
-    'A': ['AHMET', 'AHMET1'],
-    'B': ['BETÜL'],
-    'C': ['CELİLE'],
+class AddChatContactPage extends StatelessWidget {
+  const AddChatContactPage({super.key});
+
+  //  veri (database gelene kadar kullanılacak)
+  final Map<String, List<ChatUser>> groupedUsers = const {
+    'A': [ChatUser(name: 'AHMET'), ChatUser(name: 'AHMET2')],
+    'B': [ChatUser(name: 'BETÜL')],
+    'C': [ChatUser(name: 'CELİLE')],
   };
 
   @override
@@ -43,13 +50,13 @@ class ContactsPage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Contact List
+            //  Kişi Listesi
             Expanded(
               child: ListView.builder(
-                itemCount: groupedContacts.length,
-                itemBuilder: (context, groupIndex) {
-                  String letter = groupedContacts.keys.elementAt(groupIndex);
-                  List<String> names = groupedContacts[letter]!;
+                itemCount: groupedUsers.length,
+                itemBuilder: (context, index) {
+                  String letter = groupedUsers.keys.elementAt(index);
+                  List<ChatUser> users = groupedUsers[letter]!;
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -64,15 +71,16 @@ class ContactsPage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        ...names.map(
-                          (name) => Container(
+                        ...users.map(
+                          (user) => Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
                             margin: const EdgeInsets.only(bottom: 8),
                             decoration: BoxDecoration(
                               border: Border.all(color: Colors.black),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Text(name),
+                            child: Text(user.name),
                           ),
                         ),
                         const SizedBox(height: 16),
