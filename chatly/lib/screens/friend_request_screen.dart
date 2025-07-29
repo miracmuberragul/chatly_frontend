@@ -14,8 +14,42 @@ class FriendRequestScreen extends StatefulWidget {
 
 class _FriendRequestScreenState extends State<FriendRequestScreen> {
   // Şimdilik test verisi
-  final List<UserModel> friendRequests = [];
+  List<UserModel> friendRequests = [];
   final friendshipService = FriendshipService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _fetchFriendRequests();
+  }
+
+  Future<void> _fetchFriendRequests() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
+    try {
+      // Yeni eklediğimiz metodu kullanıyoruz
+      final requests = await friendshipService
+          .getIncomingPendingFriendRequestsAsUsers(currentUser.uid);
+      setState(() {
+        friendRequests = requests; // Doğrudan UserModel listesini atıyoruz
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching friend requests: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

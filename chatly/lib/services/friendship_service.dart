@@ -127,6 +127,58 @@ class FriendshipService {
         });
   }
 
+  ///getpending friend requests for a specific user (where they are the requester).
+  List<FriendshipModel> getPendingRequestsForRequester(String userId) {
+    List<FriendshipModel> pendingRequests = [];
+    _firestore
+        .collection(_friendshipCollection)
+        .where('requesterId', isEqualTo: userId)
+        .where('status', isEqualTo: 'pending')
+        .get()
+        .then((snapshot) {
+          for (var doc in snapshot.docs) {
+            pendingRequests.add(FriendshipModel.fromJson(doc.data()));
+          }
+        })
+        .catchError((error) {
+          log('Error fetching pending requests for requester: $error');
+        });
+    return pendingRequests;
+  }
+
+  Future<List<UserModel>> getIncomingPendingFriendRequestsAsUsers(
+    String currentUserId,
+  ) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection(_friendshipCollection)
+          .where('receiverId', isEqualTo: currentUserId)
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        return [];
+      }
+
+      final requesterIds = querySnapshot.docs.map((doc) {
+        return FriendshipModel.fromJson(doc.data()).requesterId;
+      }).toList();
+
+      // requesterIds'den UserModel'leri çek
+      final userQuerySnapshot = await _firestore
+          .collection(_userCollection)
+          .where(FieldPath.documentId, whereIn: requesterIds)
+          .get();
+
+      return userQuerySnapshot.docs
+          .map((doc) => UserModel.fromJson(doc.data() as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      log('Error fetching incoming pending friend requests as users: $e');
+      return [];
+    }
+  }
+
   /// Streams accepted friends for a specific user.
   Stream<List<UserModel>> getAcceptedFriends(String userId) {
     return _firestore
