@@ -8,31 +8,6 @@ class FriendshipService {
   final String _friendshipCollection = 'friendships';
   final String _userCollection = 'users';
 
-  /// Creates a unique chat document for two users if it doesn't already exist.
-  Future<String> createChatWithFriend(
-    String currentUserId,
-    String friendId,
-  ) async {
-    List<String> ids = [currentUserId, friendId];
-    ids.sort();
-    String chatId = ids.join('_');
-
-    final chatDocRef = _firestore.collection('chats').doc(chatId);
-    final chatSnapshot = await chatDocRef.get();
-
-    if (chatSnapshot.exists) {
-      log('Chat already exists: $chatId');
-      return chatId;
-    }
-
-    await chatDocRef.set({
-      'members': [currentUserId, friendId],
-      'lastMessage': '',
-      'lastMessageTimestamp': FieldValue.serverTimestamp(),
-    });
-    log('New chat created with ID: $chatId');
-    return chatId;
-  }
 
   Future<void> sendFriendRequest({
     required String requesterId,

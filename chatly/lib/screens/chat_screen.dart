@@ -9,17 +9,19 @@ import 'package:intl/intl.dart';
 import 'package:chatly/services/socket_service.dart';
 
 class ChatScreen extends StatefulWidget {
+  final String chatId;
   final String otherUserId;
   final String username;
   final bool isOnline;
-  final String profilePhotoUrl;
+  final String? profilePhotoUrl;
 
   const ChatScreen({
     super.key,
+    required this.chatId,
     required this.otherUserId,
     required this.username,
     required this.isOnline,
-    required this.profilePhotoUrl,
+    this.profilePhotoUrl,
   });
 
   @override
@@ -35,20 +37,13 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final MessageService _messageService = MessageService();
   final String _currentUserId = FirebaseAuth.instance.currentUser!.uid;
-  late final String _chatId;
 
   @override
   void initState() {
     super.initState();
-    List<String> ids = [_currentUserId, widget.otherUserId];
-    ids.sort();
-    _chatId = ids.join('_');
-
-    _markMessagesAsSeen();
-
     _socketSubscription = _socketService.events.listen((event) {
       if (event['type'] == 'typing' &&
-          event['payload']['chatId'] == _chatId &&
+          event['payload']['chatId'] == widget.chatId &&
           event['payload']['userId'] != _currentUserId) {
         if (mounted) {
           setState(() {
@@ -76,10 +71,12 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _onTyping() {
-    _socketService.sendEvent('typing', {
-      'chatId': _chatId,
-      'userId': _currentUserId,
-    });
+    if (_controller.text.isNotEmpty) {
+      _socketService.sendEvent('typing', {
+        'chatId': widget.chatId,
+        'userId': _currentUserId,
+      });
+    }
   }
 
   void _sendMessage() {
@@ -87,30 +84,15 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty) return;
 
     _messageService.sendMessage(
-      chatId: _chatId,
+      chatId: widget.chatId,
       senderId: _currentUserId,
-      otherUserId: widget.otherUserId, // Pass the other user's ID
+      otherUserId: widget.otherUserId,
       text: text,
     );
     _controller.clear();
   }
 
-  void _markMessagesAsSeen() {
-    // Listen to the stream of messages, take the first list that comes through,
-    // and mark any unread messages as seen.
-    _messageService.getMessagesStream(_chatId).first.then((messages) {
-      for (final message in messages) {
-        if (message.senderId != _currentUserId &&
-            !message.seenBy.contains(_currentUserId)) {
-          _messageService.markMessageAsSeen(
-            chatId: _chatId,
-            messageId: message.id,
-            userId: _currentUserId,
-          );
-        }
-      }
-    });
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -129,8 +111,13 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundImage: NetworkImage(widget.profilePhotoUrl),
+              backgroundImage: widget.profilePhotoUrl != null
+                  ? NetworkImage(widget.profilePhotoUrl!)
+                  : null,
               backgroundColor: Colors.grey[300],
+              child: widget.profilePhotoUrl == null
+                  ? const Icon(Icons.person, color: Colors.white)
+                  : null,
             ),
             const SizedBox(width: 8),
             Column(
@@ -164,7 +151,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: StreamBuilder<List<MessageModel>>(
-              stream: _messageService.getMessagesStream(_chatId),
+              stream: _messageService.getMessagesStream(widget.chatId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -177,6 +164,17 @@ class _ChatScreenState extends State<ChatScreen> {
                 }
 
                 final messages = snapshot.data!;
+
+                // Mark messages as seen
+                for (final message in messages) {
+                  if (!message.seenBy.contains(_currentUserId)) {
+                    _messageService.markMessageAsSeen(
+                      chatId: widget.chatId,
+                      messageId: message.id,
+                      userId: _currentUserId,
+                    );
+                  }
+                }
                 return ListView.builder(
                   reverse: true, // To show latest messages at the bottom
                   padding: const EdgeInsets.all(16),
@@ -280,6 +278,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             borderSide: BorderSide.none,
                           ),
                         ),
+                        onChanged: (_) => _onTyping(),
                         onSubmitted: (_) => _sendMessage(),
                       ),
                     ),

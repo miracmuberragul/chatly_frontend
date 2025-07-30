@@ -5,7 +5,7 @@ class UserModel {
   final String username;
   final String email;
   final String? profilePhotoUrl;
-  final bool isOnline;
+  bool isOnline;
   final Timestamp? lastSeen;
   final List<String>? friends;
 

@@ -2,6 +2,30 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/chat_model.dart'; // We will create this model next
 
 class ChatService {
+  /// Creates a unique chat document for two users if it doesn't already exist.
+  Future<String> createChatWithFriend(
+    String currentUserId,
+    String friendId,
+  ) async {
+    List<String> ids = [currentUserId, friendId];
+    ids.sort();
+    String chatId = ids.join('_');
+
+    final chatDocRef = _firestore.collection('chats').doc(chatId);
+    final chatSnapshot = await chatDocRef.get();
+
+    if (chatSnapshot.exists) {
+      return chatId;
+    }
+
+    await chatDocRef.set({
+      'members': [currentUserId, friendId],
+      'lastMessage': '',
+      'lastMessageTimestamp': FieldValue.serverTimestamp(),
+    });
+    return chatId;
+  }
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// Get a real-time stream of all chats a user is a member of.
