@@ -145,34 +145,91 @@ class _MessagesPageState extends State<MessagesPage> {
                             return const SizedBox();
                           }
 
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: Color(0xFF2F4156),
-                              backgroundImage: profilePhoto.isNotEmpty
-                                  ? NetworkImage(profilePhoto)
-                                  : null,
-                              child: profilePhoto.isEmpty
-                                  ? const Icon(
-                                      Icons.person,
-                                      color: Colors.white,
-                                    )
-                                  : null,
+                          return Dismissible(
+                            key: Key(chatDocs[index].id),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
+                              color: Colors.red,
+                              child: const Icon(
+                                Icons.delete,
+                                color: Colors.white,
+                              ),
                             ),
-                            title: Text(username),
-                            subtitle: Text(chatData['lastMessage'] ?? ''),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ChatScreen(
-                                    otherUserId: otherUserId,
-                                    username: username,
-                                    isOnline: isOnline,
-                                    profilePhotoUrl: profilePhoto,
+                            confirmDismiss: (direction) async {
+                              return await showDialog(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Delete Chat'),
+                                  content: const Text(
+                                    'Are you sure you want to delete this conversation?',
                                   ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(ctx).pop(false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(ctx).pop(true),
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
                                 ),
                               );
                             },
+                            onDismissed: (direction) async {
+                              final chatId = chatDocs[index].id;
+                              final messenger = ScaffoldMessenger.maybeOf(
+                                context,
+                              );
+
+                              await FirebaseFirestore.instance
+                                  .collection('chats')
+                                  .doc(chatId)
+                                  .delete();
+
+                              if (messenger != null && mounted) {
+                                messenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Conversation deleted'),
+                                  ),
+                                );
+                              }
+                            },
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: const Color(0xFF2F4156),
+                                backgroundImage: profilePhoto.isNotEmpty
+                                    ? NetworkImage(profilePhoto)
+                                    : null,
+                                child: profilePhoto.isEmpty
+                                    ? const Icon(
+                                        Icons.person,
+                                        color: Colors.white,
+                                      )
+                                    : null,
+                              ),
+                              title: Text(username),
+                              subtitle: Text(chatData['lastMessage'] ?? ''),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ChatScreen(
+                                      otherUserId: otherUserId,
+                                      username: username,
+                                      isOnline: isOnline,
+                                      profilePhotoUrl: profilePhoto,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                           );
                         },
                       );
