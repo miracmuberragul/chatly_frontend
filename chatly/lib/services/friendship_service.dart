@@ -39,6 +39,32 @@ class FriendshipService {
     required String receiverId,
   }) async {
     try {
+      // **NEW CHECK:** Check for existing friendship or pending request
+      final existingFriendship = await _firestore
+          .collection(_friendshipCollection)
+          .where(
+            Filter.or(
+              Filter.and(
+                Filter('requesterId', isEqualTo: requesterId),
+                Filter('receiverId', isEqualTo: receiverId),
+              ),
+              Filter.and(
+                Filter('requesterId', isEqualTo: receiverId),
+                Filter('receiverId', isEqualTo: requesterId),
+              ),
+            ),
+          )
+          .get();
+
+      if (existingFriendship.docs.isNotEmpty) {
+        log(
+          'A friendship or pending request already exists between $requesterId and $receiverId.',
+        );
+        // Optionally, you can throw a specific exception here
+        // throw Exception('Friend request already sent or users are already friends.');
+        return; // Prevent sending a new request
+      }
+
       final friendshipDoc = {
         'requesterId': requesterId,
         'receiverId': receiverId,
@@ -47,6 +73,7 @@ class FriendshipService {
         'memberIds': [requesterId, receiverId],
       };
       await _firestore.collection(_friendshipCollection).add(friendshipDoc);
+      log('Friend request sent from $requesterId to $receiverId.');
     } catch (e) {
       log('Error sending friend request: $e');
       rethrow;
@@ -127,7 +154,7 @@ class FriendshipService {
           .collection(_friendshipCollection)
           .where('requesterId', isEqualTo: requesterId)
           .where('receiverId', isEqualTo: receiverId)
-          .where('status', isEqualTo: 'accpeted')
+          .where('status', isEqualTo: 'pending')
           .limit(1)
           .get();
 
@@ -152,7 +179,7 @@ class FriendshipService {
           .collection(_friendshipCollection)
           .where('requesterId', isEqualTo: requesterId)
           .where('receiverId', isEqualTo: receiverId)
-          .where('status', isEqualTo: 'declined')
+          .where('status', isEqualTo: 'pending')
           .limit(1)
           .get();
 

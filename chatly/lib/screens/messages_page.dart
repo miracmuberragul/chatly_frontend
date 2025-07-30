@@ -3,6 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'chat_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+final TextEditingController _searchController = TextEditingController();
+String _searchQuery = '';
 
 class MessagesPage extends StatefulWidget {
   const MessagesPage({super.key});
@@ -18,6 +22,7 @@ class _MessagesPageState extends State<MessagesPage> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
+    final currentUserId = FirebaseAuth.instance.currentUser!.uid;
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -58,6 +63,12 @@ class _MessagesPageState extends State<MessagesPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.toLowerCase(); // küçük harfe çevir
+                  });
+                },
                 decoration: InputDecoration(
                   hintText: 'Search',
                   prefixIcon: const Icon(Icons.search),
@@ -81,52 +92,107 @@ class _MessagesPageState extends State<MessagesPage> {
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
-                    .collection('users')
+                    .collection('chats')
+                    .where('members', arrayContains: currentUserId)
+                    .orderBy('lastMessageTimestamp', descending: true)
                     .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+                builder: (context, chatSnapshot) {
+                  if (chatSnapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(child: Text("No user"));
+                  if (!chatSnapshot.hasData ||
+                      chatSnapshot.data!.docs.isEmpty) {
+                    return const Center(child: Text("You have no messages."));
                   }
 
-                  final users = snapshot.data!.docs;
+                  final chatDocs = chatSnapshot.data!.docs;
 
                   return ListView.builder(
-                    itemCount: users.length,
+                    itemCount: chatDocs.length,
                     itemBuilder: (context, index) {
-                      final userData =
-                          users[index].data() as Map<String, dynamic>;
-                      final userId = users[index].id;
-                      final username = userData['username'] ?? 'Unknown';
-                      final profilePhoto = userData['profilePhotoUrl'] ?? '';
-                      final isOnline = userData['isOnline'] ?? false;
+                      final chatData =
+                          chatDocs[index].data() as Map<String, dynamic>;
+                      final members = List<String>.from(
+                        chatData['members'] ?? [],
+                      );
+                      final otherUserId = members.firstWhere(
+                        (id) => id != currentUserId,
+                      );
 
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: cs.primary,
-                          backgroundImage: profilePhoto.isNotEmpty
-                              ? NetworkImage(profilePhoto)
-                              : null,
-                          child: profilePhoto.isEmpty
-                              ? Icon(Icons.person, color: cs.onPrimary)
-                              : null,
-                        ),
-                        title: Text(username),
-                        subtitle: const Text('Last message...'),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ChatScreen(
-                                otherUserId: userId,
-                                username: username,
-                                isOnline: isOnline,
-                                profilePhotoUrl: profilePhoto,
-                              ),
+                      return StreamBuilder<DocumentSnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(otherUserId)
+                            .snapshots(),
+                        builder: (context, userSnapshot) {
+                          if (!userSnapshot.hasData ||
+                              !userSnapshot.data!.exists) {
+                            return const SizedBox();
+                          }
+
+                          final userData =
+                              userSnapshot.data!.data() as Map<String, dynamic>;
+                          final username = userData['username'] ?? 'Unknown';
+                          final profilePhoto =
+                              userData['profilePhotoUrl'] ?? '';
+                          final isOnline = userData['isOnline'] ?? false;
+
+                          if (_searchQuery.isNotEmpty &&
+                              !username.toLowerCase().contains(_searchQuery)) {
+                            return const SizedBox();
+                          }
+
+                          return ListTile(
+                            leading: Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 24,
+                                  backgroundColor: const Color(0xFF2F4156),
+                                  backgroundImage: profilePhoto.isNotEmpty
+                                      ? NetworkImage(profilePhoto)
+                                      : null,
+                                  child: profilePhoto.isEmpty
+                                      ? const Icon(
+                                          Icons.person,
+                                          color: Colors.white,
+                                        )
+                                      : null,
+                                ),
+                                if (isOnline)
+                                  Positioned(
+                                    right: 0,
+                                    bottom: 0,
+                                    child: Container(
+                                      height: 12,
+                                      width: 12,
+                                      decoration: BoxDecoration(
+                                        color: Colors.green,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 2,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
+                            title: Text(username),
+                            subtitle: Text(chatData['lastMessage'] ?? ''),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ChatScreen(
+                                    otherUserId: otherUserId,
+                                    username: username,
+                                    isOnline: isOnline,
+                                    profilePhotoUrl: profilePhoto,
+                                  ),
+                                ),
+                              );
+                            },
                           );
                         },
                       );

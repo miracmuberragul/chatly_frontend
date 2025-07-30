@@ -111,4 +111,22 @@ class UserService {
       rethrow; // Hatanın UI katmanında yakalanabilmesi için yeniden fırlat
     }
   }
+
+  /// Updates the user's online status and last seen timestamp.
+  Future<void> updateUserStatus(String userId, {required bool isOnline}) async {
+    try {
+      final Map<String, dynamic> updateData = {
+        'isOnline': isOnline,
+      };
+      if (!isOnline) {
+        updateData['lastSeen'] = FieldValue.serverTimestamp();
+      }
+
+      await _usersCollection.doc(userId).update(updateData);
+      log('User status updated for user ID: $userId. Online: $isOnline');
+    } catch (e) {
+      log('Error updating user status: $e');
+      rethrow;
+    }
+  }
 }

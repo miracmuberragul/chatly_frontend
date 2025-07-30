@@ -27,20 +27,6 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
         .getIncomingPendingFriendRequestsAsUsers(currentUserId);
   }
 
-  Future<void> _acceptFriendRequest(String requesterId) async {
-    await _friendshipService.acceptFriendRequest(requesterId, currentUserId);
-    setState(() {
-      _loadFriendRequests();
-    });
-  }
-
-  Future<void> _rejectFriendRequest(String requesterId) async {
-    await _friendshipService.rejectFriendRequest(requesterId, currentUserId);
-    setState(() {
-      _loadFriendRequests();
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -119,20 +105,30 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      tooltip: 'Accept',
-                      icon: Icon(Icons.check, color: cs.secondary),
-                      onPressed: () {
+                      icon: const Icon(Icons.check, color: Colors.green),
+                      onPressed: () async {
                         if (user.uid != null) {
-                          _acceptFriendRequest(user.uid!);
+                          await _friendshipService.acceptFriendRequest(
+                            user.uid,
+                            currentUserId,
+                          );
+                          setState(() {
+                            _loadFriendRequests();
+                          });
                         }
                       },
                     ),
                     IconButton(
-                      tooltip: 'Reject',
-                      icon: Icon(Icons.close, color: cs.error),
-                      onPressed: () {
+                      icon: const Icon(Icons.close, color: Colors.red),
+                      onPressed: () async {
                         if (user.uid != null) {
-                          _rejectFriendRequest(user.uid!);
+                          await _friendshipService.declineFriendRequest(
+                            user.uid,
+                            currentUserId,
+                          );
+                          setState(() {
+                            _loadFriendRequests();
+                          });
                         }
                       },
                     ),

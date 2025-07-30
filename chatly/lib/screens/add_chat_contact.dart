@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../models/user_model.dart';
-import '../services/friendship_service.dart';
-import '../services/user_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore'a direkt erişim için kalsın
+import 'package:firebase_auth/firebase_auth.dart'; // Firebase Authentication'dan UID almak için
+import '../models/user_model.dart'; // UserModel'e ihtiyacımız var.
+import '../services/friendship_service.dart'; // FriendshipService'e ihtiyacımız var.
+import '../services/user_service.dart'; // Tüm kullanıcıları almak için UserService'e ihtiyacımız var.
+import 'chat_screen.dart';
 
 class AddChatContactPage extends StatefulWidget {
   const AddChatContactPage({super.key});
@@ -182,8 +183,8 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
                                     ),
                                   ),
                                 ),
-                                ...users.map(
-                                  (user) => ListTile(
+                                ...users.map((user) {
+                                  return ListTile(
                                     leading: CircleAvatar(
                                       backgroundImage:
                                           (user.profilePhotoUrl != null &&
@@ -211,34 +212,21 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
                                     ),
                                     subtitle: Text(user.email),
                                     onTap: () {
-                                      ScaffoldMessenger.of(
+                                      Navigator.push(
                                         context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            '${user.username} ile sohbet başlatıldı!',
+                                        MaterialPageRoute(
+                                          builder: (context) => ChatScreen(
+                                            otherUserId: user.uid,
+                                            username: user.username,
+                                            profilePhotoUrl:
+                                                user.profilePhotoUrl ?? '',
+                                            isOnline: user.isOnline,
                                           ),
                                         ),
                                       );
                                     },
-                                    trailing: IconButton(
-                                      icon: const Icon(
-                                        Icons.chat_bubble_outline,
-                                      ),
-                                      onPressed: () {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              '${user.username} ile sohbet başlatıldı!',
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
+                                  );
+                                }).toList(),
                                 const Divider(
                                   height: 1,
                                   indent: 16,
