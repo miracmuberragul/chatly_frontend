@@ -4,7 +4,6 @@ import 'package:chatly/services/friendship_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class ContactScreen extends StatefulWidget {
   const ContactScreen({super.key});
@@ -17,17 +16,16 @@ class _ContactScreenState extends State<ContactScreen> {
   String query = '';
   List<UserModel> allContacts = [];
   List<UserModel> filteredContacts = [];
-  Set<String> sentRequests = {}; // 🔹 Gönderilen istekleri takip
+  Set<String> sentRequests = {};
   final friendshipService = FriendshipService();
+
   @override
   void initState() {
     super.initState();
-    _loadContacts(); // 🔹 Kontakları yükle
+    _loadContacts();
   }
 
   void _loadContacts() {
-    // 🔹 Burada Firestore'dan kullanıcıları yükleyin
-    // Örnek olarak, tüm kullanıcıları alıyoruz
     FirebaseFirestore.instance.collection('users').get().then((snapshot) {
       setState(() {
         allContacts = snapshot.docs
@@ -52,12 +50,14 @@ class _ContactScreenState extends State<ContactScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Başlık
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
@@ -65,10 +65,10 @@ class _ContactScreenState extends State<ContactScreen> {
               ),
               child: Row(
                 children: [
-                  const Text(
+                  Text(
                     'Add new contact',
                     style: TextStyle(
-                      color: Color(0xFF2F4156),
+                      color: cs.primary, // 0xFF2F4156
                       fontSize: 30,
                       fontWeight: FontWeight.bold,
                     ),
@@ -77,31 +77,30 @@ class _ContactScreenState extends State<ContactScreen> {
               ),
             ),
             const SizedBox(height: 5),
-            // 🔍 Search bar
+
+            // Search bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: TextField(
+                onChanged: _filterContacts,
                 decoration: InputDecoration(
                   hintText: 'Search contact',
                   prefixIcon: const Icon(Icons.search),
                   filled: true,
-                  fillColor: Colors.grey[200],
+                  fillColor: cs.surfaceVariant, // 0xFFC8D9E6 benzeri
                   border: OutlineInputBorder(
-                    borderSide: const BorderSide(color: Color(0xFF2F4156)),
+                    borderSide: BorderSide(color: cs.primary),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(
-                      color: Color(0xFF2F4156),
-                      width: 2,
-                    ),
+                    borderSide: BorderSide(color: cs.primary, width: 2),
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
               ),
             ),
 
-            // 🔗 "Requests" link
+            // "Requests" link
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
@@ -119,12 +118,12 @@ class _ContactScreenState extends State<ContactScreen> {
                         ),
                       );
                     },
-                    child: const Text(
+                    child: Text(
                       'Requests',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF2F4156),
+                        color: cs.primary,
                         decoration: TextDecoration.underline,
                       ),
                     ),
@@ -133,7 +132,7 @@ class _ContactScreenState extends State<ContactScreen> {
               ),
             ),
 
-            // 👥 Contact list
+            // Contact list
             Expanded(
               child: ListView.builder(
                 itemCount: filteredContacts.length,
@@ -142,12 +141,11 @@ class _ContactScreenState extends State<ContactScreen> {
                   final alreadySent = sentRequests.contains(user.username);
 
                   return ListTile(
-                    leading: const CircleAvatar(
-                      backgroundColor: Color(0xFF2F4156),
-                      child: Icon(Icons.person, color: Colors.white),
+                    leading: CircleAvatar(
+                      backgroundColor: cs.primary,
+                      child: Icon(Icons.person, color: cs.onPrimary),
                     ),
                     title: Text(user.username!),
-
                     trailing: ElevatedButton(
                       onPressed: alreadySent
                           ? null
@@ -155,32 +153,24 @@ class _ContactScreenState extends State<ContactScreen> {
                               try {
                                 final currentUser =
                                     FirebaseAuth.instance.currentUser;
-                                List<String> ids = [currentUser!.uid, user.uid];
-                                // Firestore'a friend request gönder
                                 await friendshipService.sendFriendRequest(
                                   requesterId: currentUser!.uid,
                                   receiverId: user.uid,
                                 );
-
-                                // UI'de güncelle
                                 setState(() {
-                                  sentRequests.add(user.username);
+                                  sentRequests.add(user.username!);
                                 });
-
-                                // Bildirim
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
                                       'Friend request sent to ${user.username}',
                                     ),
-                                    duration: const Duration(seconds: 2),
                                   ),
                                 );
                               } catch (e) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('Failed to send request: $e'),
-                                    duration: const Duration(seconds: 2),
                                   ),
                                 );
                               }
@@ -195,7 +185,11 @@ class _ContactScreenState extends State<ContactScreen> {
                       ),
                       child: Text(
                         alreadySent ? 'Sent' : 'Add',
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(
+                          color: alreadySent
+                              ? Colors.white
+                              : const Color(0xFFFFFFFF),
+                        ),
                       ),
                     ),
                   );

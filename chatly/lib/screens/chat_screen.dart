@@ -1,9 +1,11 @@
 import 'package:chatly/models/message_model.dart';
 import 'package:chatly/services/message_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:intl/intl.dart';
 import 'package:chatly/services/socket_service.dart';
@@ -27,6 +29,23 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  String _formatLastSeen(Timestamp? lastSeen) {
+    if (lastSeen == null) return 'offline';
+    final now = DateTime.now();
+    final lastSeenDateTime = lastSeen.toDate();
+    final difference = now.difference(lastSeenDateTime);
+
+    if (difference.inMinutes < 1) {
+      return 'last seen just now';
+    } else if (difference.inHours < 1) {
+      return 'last seen ${difference.inMinutes} minutes ago';
+    } else if (difference.inDays < 1) {
+      return 'last seen at ${DateFormat.Hm().format(lastSeenDateTime)}';
+    } else {
+      return 'last seen on ${DateFormat.yMd().format(lastSeenDateTime)}';
+    }
+  }
+
   final SocketService _socketService = SocketService();
   bool _isOtherUserTyping = false;
   StreamSubscription? _socketSubscription;
@@ -42,7 +61,7 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     List<String> ids = [_currentUserId, widget.otherUserId];
     ids.sort();
-    _chatId = ids.join('_');
+    _chatId = ids.join('_'); // <- yazım düzeltildi (tema dışı, crash önleme)
 
     _markMessagesAsSeen();
 
@@ -96,8 +115,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _markMessagesAsSeen() {
-    // Listen to the stream of messages, take the first list that comes through,
-    // and mark any unread messages as seen.
     _messageService.getMessagesStream(_chatId).first.then((messages) {
       for (final message in messages) {
         if (message.senderId != _currentUserId &&
@@ -114,50 +131,73 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color myColor = Color(0xFF567C8D);
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Balon renkleri: marka ikincil tonunu "benim mesajım" için kullanıyoruz.
+    final bubbleMe = isDark ? const Color(0xFFC8D9E6) : const Color(0xFF567C8D);
+    final onBubbleMe = cs.onSecondary;
+    final bubbleOther = cs.surface;
+    final onBubbleOther = cs.onSurface;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFECE5DD),
+      backgroundColor: cs.tertiary,
       appBar: AppBar(
-        backgroundColor: myColor,
+        backgroundColor: cs.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(FontAwesomeIcons.chevronLeft, color: cs.primary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundImage: NetworkImage(widget.profilePhotoUrl),
-              backgroundColor: Colors.grey[300],
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        title: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.otherUserId)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const SizedBox(); // Loading state
+            }
+            final userData = snapshot.data!.data() as Map<String, dynamic>;
+            final isOnline = userData['isOnline'] ?? false;
+            final lastSeen = userData['lastSeen'] as Timestamp?;
+
+            return Row(
               children: [
-                Text(
-                  widget.username,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                CircleAvatar(
+                  radius: 18,
+                  backgroundImage: NetworkImage(widget.profilePhotoUrl),
+                  backgroundColor: isDark ? Colors.grey[700] : Colors.grey[300],
                 ),
-                Text(
-                  _isOtherUserTyping
-                      ? 'typing...'
-                      : (widget.isOnline ? 'online' : 'offline'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontStyle: _isOtherUserTyping
-                        ? FontStyle.italic
-                        : FontStyle.normal,
-                    color: Colors.white70,
-                  ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.username,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onBackground,
+                      ),
+                    ),
+                    Text(
+                      _isOtherUserTyping
+                          ? 'typing...'
+                          : (isOnline ? 'online' : _formatLastSeen(lastSeen)),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: _isOtherUserTyping
+                            ? FontStyle.italic
+                            : FontStyle.normal,
+                        color: cs.secondary, // durum rengi (marka uyumlu)
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+          },
         ),
       ),
       body: Column(
@@ -177,81 +217,110 @@ class _ChatScreenState extends State<ChatScreen> {
                 }
 
                 final messages = snapshot.data!;
-                return ListView.builder(
-                  reverse: true, // To show latest messages at the bottom
-                  padding: const EdgeInsets.all(16),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final message = messages[index];
-                    final bool isMe = message.senderId == _currentUserId;
-                    final bool seen = message.seenBy.length > 1;
-
-                    return Align(
-                      alignment: isMe
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Container(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.7,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isMe
-                              ? myColor.withAlpha((255 * 0.9).round())
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              message.text,
-                              style: TextStyle(
-                                color: isMe ? Colors.white : Colors.black,
-                                fontSize: 16,
-                              ),
+                return Column(
+                  children: [
+                    if (_isOtherUserTyping)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0, bottom: 6),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            "${widget.username} is typing...",
+                            style: TextStyle(
+                              fontStyle: FontStyle.italic,
+                              color: cs.onSurfaceVariant,
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  DateFormat.Hm().format(
-                                    message.timestamp.toDate(),
-                                  ),
-                                  style: TextStyle(
-                                    color: isMe
-                                        ? Colors.white70
-                                        : Colors.grey[600],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                if (isMe)
-                                  Icon(
-                                    seen ? Icons.done_all : Icons.check,
-                                    size: 16,
-                                    color: seen
-                                        ? Colors.blue[400]
-                                        : Colors.white70,
-                                  ),
-                              ],
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-                    );
-                  },
+                    Expanded(
+                      child: ListView.builder(
+                        reverse: true, // en yeni altta
+                        padding: const EdgeInsets.all(16),
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          final message = messages[index];
+                          final bool isMe = message.senderId == _currentUserId;
+                          final bool seen = message.seenBy.length > 1;
+
+                          return Align(
+                            alignment: isMe
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: Container(
+                              constraints: BoxConstraints(
+                                maxWidth:
+                                    MediaQuery.of(context).size.width * 0.7,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              margin: const EdgeInsets.symmetric(vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isMe ? bubbleMe : bubbleOther,
+                                borderRadius: BorderRadius.only(
+                                  topLeft: Radius.circular(isMe ? 12 : 0),
+                                  topRight: Radius.circular(isMe ? 0 : 12),
+                                  bottomLeft: const Radius.circular(12),
+                                  bottomRight: const Radius.circular(12),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    message.text,
+                                    style: TextStyle(
+                                      color: isMe ? onBubbleMe : onBubbleOther,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        DateFormat.Hm().format(
+                                          message.timestamp.toDate(),
+                                        ),
+                                        style: TextStyle(
+                                          color:
+                                              (isMe
+                                                      ? onBubbleMe
+                                                      : onBubbleOther)
+                                                  .withOpacity(0.7),
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      if (isMe)
+                                        Icon(
+                                          seen ? Icons.done_all : Icons.check,
+                                          size: 16,
+                                          color: seen
+                                              ? (isDark
+                                                    ? Colors.blue[300]
+                                                    : Colors.blue[600])
+                                              : onBubbleMe.withOpacity(0.7),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
           ),
+          // Alt giriş alanı
           Container(
-            color: Colors.white, // Alt arka plan tamamen beyaz
+            color: cs.surface,
             child: SafeArea(
               top: false,
               child: Padding(
@@ -262,18 +331,21 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.photo, color: myColor),
+                      icon: Icon(Icons.add, color: cs.primary),
                       onPressed: () {},
                     ),
                     Expanded(
                       child: TextField(
                         controller: _controller,
+                        onChanged: (_) => _onTyping(),
                         decoration: InputDecoration(
                           hintText: "Type a message",
+
                           filled: true,
-                          fillColor: Colors.grey[200],
+                          fillColor: cs.scrim,
                           contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
+                            horizontal: 12,
+                            vertical: 8,
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(25),
@@ -284,10 +356,13 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    CircleAvatar(
-                      backgroundColor: myColor,
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(0xFF2F4156),
+                      ),
                       child: IconButton(
-                        icon: const Icon(Icons.send, color: Colors.white),
+                        icon: Icon(Icons.send, color: cs.background),
                         onPressed: _sendMessage,
                       ),
                     ),

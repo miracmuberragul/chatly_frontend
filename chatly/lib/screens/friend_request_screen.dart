@@ -30,7 +30,6 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
   Future<void> _acceptFriendRequest(String requesterId) async {
     await _friendshipService.acceptFriendRequest(requesterId, currentUserId);
     setState(() {
-      // Refresh the list after accepting
       _loadFriendRequests();
     });
   }
@@ -38,28 +37,27 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
   Future<void> _rejectFriendRequest(String requesterId) async {
     await _friendshipService.rejectFriendRequest(requesterId, currentUserId);
     setState(() {
-      // Refresh the list after rejecting
       _loadFriendRequests();
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Requests',
           style: TextStyle(
-            color: Color(0xFF2F4156),
+            color: cs.onBackground,
             fontSize: 30,
             fontWeight: FontWeight.bold,
           ),
         ),
         centerTitle: false,
-        backgroundColor: Colors.white,
+        // Arka/ön renkleri tema yönetsin; sabitleme yok.
         elevation: 0,
-        foregroundColor: const Color(0xFF2F4156),
         automaticallyImplyLeading: true,
       ),
       body: FutureBuilder<List<UserModel>>(
@@ -75,12 +73,16 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(FontAwesomeIcons.userPlus, size: 64, color: Colors.grey),
-                  SizedBox(height: 20),
+                children: [
+                  Icon(
+                    FontAwesomeIcons.userPlus,
+                    size: 64,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  const SizedBox(height: 20),
                   Text(
                     'No friend requests',
-                    style: TextStyle(fontSize: 18, color: Colors.black54),
+                    style: TextStyle(fontSize: 18, color: cs.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -93,18 +95,32 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
             itemCount: friendRequests.length,
             itemBuilder: (context, index) {
               final user = friendRequests[index];
+
+              Widget leadingAvatar;
+              if (user.profilePhotoUrl != null &&
+                  user.profilePhotoUrl!.isNotEmpty) {
+                leadingAvatar = CircleAvatar(
+                  backgroundImage: NetworkImage(user.profilePhotoUrl!),
+                );
+              } else {
+                final initial = (user.username?.isNotEmpty ?? false)
+                    ? user.username!.characters.first.toUpperCase()
+                    : '?';
+                leadingAvatar = CircleAvatar(
+                  backgroundColor: cs.primary,
+                  child: Text(initial, style: TextStyle(color: cs.onPrimary)),
+                );
+              }
+
               return ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: NetworkImage(
-                    user.profilePhotoUrl ?? 'https://via.placeholder.com/150',
-                  ),
-                ),
+                leading: leadingAvatar,
                 title: Text(user.username ?? 'No Name'),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.check, color: Colors.green),
+                      tooltip: 'Accept',
+                      icon: Icon(Icons.check, color: cs.secondary),
                       onPressed: () {
                         if (user.uid != null) {
                           _acceptFriendRequest(user.uid!);
@@ -112,7 +128,8 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                       },
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.red),
+                      tooltip: 'Reject',
+                      icon: Icon(Icons.close, color: cs.error),
                       onPressed: () {
                         if (user.uid != null) {
                           _rejectFriendRequest(user.uid!);
