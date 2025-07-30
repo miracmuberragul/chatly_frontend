@@ -10,9 +10,10 @@ class MessageService {
   CollectionReference get _chatsCollection => _firestore.collection('chats');
 
   /// Send a new message to a specific chat
-  Future<void> sendMessage({
+    Future<void> sendMessage({
     required String chatId,
     required String senderId,
+    required String otherUserId, // Required to create the chat document correctly
     required String text,
   }) async {
     if (text.trim().isEmpty) return; // Do not send empty messages
@@ -46,10 +47,16 @@ class MessageService {
             transaction.set(newMessageRef, newMessage.toFirestore());
 
             // 4. Update the parent chat document with the last message info.
-            transaction.update(chatDocRef, {
-              'lastMessage': newMessage.text,
-              'lastMessageTimestamp': newMessage.timestamp,
-            });
+                        // 4. Create or update the parent chat document with the last message info and members.
+            transaction.set(
+              chatDocRef,
+              {
+                'members': [senderId, otherUserId],
+                'lastMessage': newMessage.text,
+                'lastMessageTimestamp': newMessage.timestamp,
+              },
+              SetOptions(merge: true), // Use merge to avoid overwriting existing fields
+            );
           })
           .catchError((error) {
             log('Error sending message and updating chat: $error');

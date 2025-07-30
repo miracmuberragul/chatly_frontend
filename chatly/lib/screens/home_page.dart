@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'messages_page.dart';
 import 'contact_screen.dart';
-//import 'settings_screen.dart'; // Ayarlar sayfan varsa
+import 'settings.dart'; // Ayarlar sayfan varsa
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,7 +17,7 @@ class _HomePageState extends State<HomePage> {
   final List<Widget> _pages = const [
     ContactScreen(),
     MessagesPage(),
-    Placeholder(),
+    SettingsScreen(),
   ];
 
   @override
@@ -35,7 +35,7 @@ class _HomePageState extends State<HomePage> {
                 color: _selectedIndex == 0
                     ? Color(0xFF71D7E1)
                     : Color(0xFF2F4156),
-                size: 30,
+                size: 25,
               ),
               onPressed: () {
                 setState(() => _selectedIndex = 0);
@@ -47,7 +47,7 @@ class _HomePageState extends State<HomePage> {
                 color: _selectedIndex == 1
                     ? Color(0xFF71D7E1)
                     : Color(0xFF2F4156),
-                size: 30,
+                size: 25,
               ),
               onPressed: () {
                 setState(() => _selectedIndex = 1);
@@ -59,7 +59,7 @@ class _HomePageState extends State<HomePage> {
                 color: _selectedIndex == 2
                     ? Color(0xFF71D7E1)
                     : Color(0xFF2F4156),
-                size: 30,
+                size: 25,
               ),
               onPressed: () {
                 setState(() => _selectedIndex = 2);

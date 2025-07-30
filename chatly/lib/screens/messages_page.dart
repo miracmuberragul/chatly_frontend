@@ -1,7 +1,12 @@
 import 'package:chatly/screens/add_chat_contact.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'chat_screen.dart'; // ChatScreen dosyanı import etmeyi unutma
+import 'chat_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+final TextEditingController _searchController = TextEditingController();
+String _searchQuery = '';
 
 class MessagesPage extends StatefulWidget {
   const MessagesPage({super.key});
@@ -15,6 +20,7 @@ class _MessagesPageState extends State<MessagesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = FirebaseAuth.instance.currentUser!.uid;
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -30,7 +36,11 @@ class _MessagesPageState extends State<MessagesPage> {
                 children: [
                   const Text(
                     'Messages',
-                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2F4156),
+                    ),
                   ),
                   const Spacer(),
                   IconButton(
@@ -52,6 +62,12 @@ class _MessagesPageState extends State<MessagesPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.toLowerCase(); // küçük harfe çevir
+                  });
+                },
                 decoration: InputDecoration(
                   hintText: 'Search',
                   prefixIcon: const Icon(Icons.search),
@@ -76,29 +92,89 @@ class _MessagesPageState extends State<MessagesPage> {
 
             //  Mesaj Listesi
             Expanded(
-              child: ListView.builder(
-                itemCount: 5, // örnek kullanıcı sayısı
-                itemBuilder: (context, index) {
-                  final userName = 'Kullanıcı $index';
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('chats')
+                    .where('members', arrayContains: currentUserId)
+                    .orderBy('lastMessageTimestamp', descending: true)
+                    .snapshots(),
+                builder: (context, chatSnapshot) {
+                  if (chatSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                  return ListTile(
-                    leading: const CircleAvatar(
-                      backgroundColor: Color(0xFF2F4156),
-                      child: Icon(Icons.person, color: Colors.white),
-                    ),
-                    title: Text(userName),
-                    subtitle: const Text('Son mesaj...'),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ChatScreen(
-                            userName: userName,
-                            isOnline:
-                                index % 2 == 0, // demo için online/offline
-                            profileImageUrl: "https://via.placeholder.com/150",
-                          ),
-                        ),
+                  if (!chatSnapshot.hasData ||
+                      chatSnapshot.data!.docs.isEmpty) {
+                    return const Center(child: Text("You have no messages."));
+                  }
+
+                  final chatDocs = chatSnapshot.data!.docs;
+
+                  return ListView.builder(
+                    itemCount: chatDocs.length,
+                    itemBuilder: (context, index) {
+                      final chatData =
+                          chatDocs[index].data() as Map<String, dynamic>;
+                      final members = List<String>.from(
+                        chatData['members'] ?? [],
+                      );
+                      final otherUserId = members.firstWhere(
+                        (id) => id != currentUserId,
+                      );
+
+                      return FutureBuilder<DocumentSnapshot>(
+                        future: FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(otherUserId)
+                            .get(),
+                        builder: (context, userSnapshot) {
+                          if (!userSnapshot.hasData ||
+                              !userSnapshot.data!.exists) {
+                            return const SizedBox();
+                          }
+
+                          final userData =
+                              userSnapshot.data!.data() as Map<String, dynamic>;
+                          final username = userData['username'] ?? 'Unknown';
+                          final profilePhoto =
+                              userData['profilePhotoUrl'] ?? '';
+                          final isOnline = userData['isOnline'] ?? false;
+
+                          if (_searchQuery.isNotEmpty &&
+                              !username.toLowerCase().contains(_searchQuery)) {
+                            return const SizedBox();
+                          }
+
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Color(0xFF2F4156),
+                              backgroundImage: profilePhoto.isNotEmpty
+                                  ? NetworkImage(profilePhoto)
+                                  : null,
+                              child: profilePhoto.isEmpty
+                                  ? const Icon(
+                                      Icons.person,
+                                      color: Colors.white,
+                                    )
+                                  : null,
+                            ),
+                            title: Text(username),
+                            subtitle: Text(chatData['lastMessage'] ?? ''),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ChatScreen(
+                                    otherUserId: otherUserId,
+                                    username: username,
+                                    isOnline: isOnline,
+                                    profilePhotoUrl: profilePhoto,
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
                       );
                     },
                   );
