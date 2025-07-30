@@ -10,19 +10,23 @@ class MessageService {
   CollectionReference get _chatsCollection => _firestore.collection('chats');
 
   /// Send a new message to a specific chat
-    Future<void> sendMessage({
+  Future<void> sendMessage({
     required String chatId,
     required String senderId,
     required String otherUserId, // Required to create the chat document correctly
-    required String text,
+    String? text,
+    String? imageUrl,
+    required String type,
   }) async {
-    if (text.trim().isEmpty) return; // Do not send empty messages
+    // Basic validation: Do not send empty messages or images without a URL
+    if ((type == 'text' && (text == null || text.trim().isEmpty)) ||
+        (type == 'image' && (imageUrl == null || imageUrl.isEmpty))) {
+      return;
+    }
 
     try {
-      // Get a reference to the 'messages' subcollection for the given chat
-      final messagesCollection = _chatsCollection
-          .doc(chatId)
-          .collection('messages');
+      final messagesCollection =
+          _chatsCollection.doc(chatId).collection('messages');
 
       // Create a new message object
       final newMessage = MessageModel(
@@ -30,41 +34,33 @@ class MessageService {
         chatId: chatId,
         senderId: senderId,
         text: text,
+        imageUrl: imageUrl,
+        type: type,
         timestamp: Timestamp.now(),
-        seenBy: [senderId], // Initially, only the sender has 'seen' the message
+        seenBy: [senderId], // Initially, only the sender has 'seen' it
       );
 
-      // Use a transaction to ensure both operations (adding a message and updating the chat doc) succeed or fail together.
-      await _firestore
-          .runTransaction((transaction) async {
-            // 1. Get a reference to the new message document.
-            final newMessageRef = messagesCollection.doc(newMessage.id);
+      // Use a transaction to ensure atomicity
+      await _firestore.runTransaction((transaction) async {
+        final newMessageRef = messagesCollection.doc(newMessage.id);
+        final chatDocRef = _chatsCollection.doc(chatId);
 
-            // 2. Get a reference to the parent chat document.
-            final chatDocRef = _chatsCollection.doc(chatId);
+        // Set the new message in the subcollection
+        transaction.set(newMessageRef, newMessage.toFirestore());
 
-            // 3. Set the new message in the subcollection.
-            transaction.set(newMessageRef, newMessage.toFirestore());
-
-            // 4. Update the parent chat document with the last message info.
-                        // 4. Create or update the parent chat document with the last message info and members.
-            transaction.set(
-              chatDocRef,
-              {
-                'members': [senderId, otherUserId],
-                'lastMessage': newMessage.text,
-                'lastMessageTimestamp': newMessage.timestamp,
-              },
-              SetOptions(merge: true), // Use merge to avoid overwriting existing fields
-            );
-          })
-          .catchError((error) {
-            log('Error sending message and updating chat: $error');
-            throw error;
-          });
+        // Update the parent chat document with last message info
+        transaction.set(
+          chatDocRef,
+          {
+            'members': [senderId, otherUserId],
+            'lastMessage': type == 'image' ? '📷 Photo' : newMessage.text,
+            'lastMessageTimestamp': newMessage.timestamp,
+          },
+          SetOptions(merge: true),
+        );
+      });
     } catch (e) {
       log('Error sending message: $e');
-      // Optionally, re-throw or handle the error as needed
       rethrow;
     }
   }

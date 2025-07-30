@@ -1,5 +1,7 @@
 import 'package:chatly/models/message_model.dart';
 import 'package:chatly/services/message_service.dart';
+import 'package:chatly/services/storage_service.dart'; // Import StorageService
+import 'package:image_picker/image_picker.dart'; // Import image_picker
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
@@ -44,6 +46,7 @@ class _ChatScreenState extends State<ChatScreen> {
       return 'last seen on ${DateFormat.yMd().format(lastSeenDateTime)}';
     }
   }
+
   final SocketService _socketService = SocketService();
   bool _isOtherUserTyping = false;
   StreamSubscription? _socketSubscription;
@@ -51,6 +54,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   final TextEditingController _controller = TextEditingController();
   final MessageService _messageService = MessageService();
+  final StorageService _storageService =
+      StorageService(); // Add StorageService instance
   final String _currentUserId = FirebaseAuth.instance.currentUser!.uid;
   late final String _chatId;
 
@@ -106,8 +111,9 @@ class _ChatScreenState extends State<ChatScreen> {
     _messageService.sendMessage(
       chatId: _chatId,
       senderId: _currentUserId,
-      otherUserId: widget.otherUserId, // Pass the other user's ID
+      otherUserId: widget.otherUserId,
       text: text,
+      type: 'text', // Specify message type as text
     );
     _controller.clear();
   }
@@ -159,8 +165,13 @@ class _ChatScreenState extends State<ChatScreen> {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundImage: NetworkImage(widget.profilePhotoUrl),
+                  backgroundImage: (widget.profilePhotoUrl.startsWith('http'))
+                      ? NetworkImage(widget.profilePhotoUrl)
+                      : null,
                   backgroundColor: Colors.grey[300],
+                  child: (widget.profilePhotoUrl.startsWith('http'))
+                      ? null
+                      : const Icon(Icons.person, color: Colors.white),
                 ),
                 const SizedBox(width: 8),
                 Column(
@@ -177,8 +188,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       _isOtherUserTyping
                           ? 'typing...'
                           : isOnline
-                              ? 'online'
-                              : _formatLastSeen(lastSeen),
+                          ? 'online'
+                          : _formatLastSeen(lastSeen),
                       style: TextStyle(
                         fontSize: 12,
                         fontStyle: _isOtherUserTyping
@@ -217,6 +228,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final message = messages[index];
+                    print('Building message: type=${message.type}, url=${message.imageUrl}');
                     final bool isMe = message.senderId == _currentUserId;
                     final bool seen = message.seenBy.length > 1;
 
@@ -242,13 +254,24 @@ class _ChatScreenState extends State<ChatScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(
-                              message.text,
-                              style: TextStyle(
-                                color: isMe ? Colors.white : Colors.black,
-                                fontSize: 16,
-                              ),
-                            ),
+                            message.type == 'image'
+                                ? (message.imageUrl != null && message.imageUrl!.startsWith('http'))
+                                    ? Image.network(message.imageUrl!)
+                                    : const Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.broken_image, color: Colors.white, size: 40),
+                                          SizedBox(height: 4),
+                                          Text('Image error', style: TextStyle(color: Colors.white)),
+                                        ],
+                                      )
+                                : Text(
+                                    message.text ?? '', // Handle potential null text
+                                    style: TextStyle(
+                                      color: isMe ? Colors.white : Colors.black,
+                                      fontSize: 16,
+                                    ),
+                                  ),
                             const SizedBox(height: 4),
                             Row(
                               mainAxisSize: MainAxisSize.min,
@@ -297,7 +320,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   children: [
                     IconButton(
                       icon: Icon(Icons.photo, color: myColor),
-                      onPressed: () {},
+                      onPressed: _sendImage,
                     ),
                     Expanded(
                       child: TextField(
@@ -333,5 +356,38 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
     );
+  }
+
+  void _sendImage() async {
+    print('1. _sendImage function called.');
+    try {
+      final XFile? image = await _storageService.pickImage();
+
+      if (image != null) {
+        print('2. Image picked successfully: ${image.path}');
+        // Show a loading indicator if you want
+        print('3. Uploading image to storage...');
+        final String? imageUrl = await _storageService.uploadImage(_chatId, image);
+
+        if (imageUrl != null) {
+          print('4. Image uploaded successfully. URL: $imageUrl');
+          print('5. Sending image message...');
+          _messageService.sendMessage(
+            chatId: _chatId,
+            senderId: _currentUserId,
+            otherUserId: widget.otherUserId,
+            imageUrl: imageUrl,
+            type: 'image',
+          );
+          print('6. Image message sent.');
+        } else {
+          print('Error: Image URL is null after upload.');
+        }
+      } else {
+        print('Image picking cancelled or failed.');
+      }
+    } catch (e) {
+      print('An error occurred in _sendImage: $e');
+    }
   }
 }

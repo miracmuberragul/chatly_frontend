@@ -145,57 +145,95 @@ class _MessagesPageState extends State<MessagesPage> {
                             return const SizedBox();
                           }
 
-                          return ListTile(
-                            leading: Stack(
-                              children: [
-                                CircleAvatar(
-                                  radius: 24,
-                                  backgroundColor: const Color(0xFF2F4156),
-                                  backgroundImage: profilePhoto.isNotEmpty
-                                      ? NetworkImage(profilePhoto)
-                                      : null,
-                                  child: profilePhoto.isEmpty
-                                      ? const Icon(
-                                          Icons.person,
-                                          color: Colors.white,
-                                        )
-                                      : null,
-                                ),
-                                if (isOnline)
-                                  Positioned(
-                                    right: 0,
-                                    bottom: 0,
-                                    child: Container(
-                                      height: 12,
-                                      width: 12,
-                                      decoration: BoxDecoration(
-                                        color: Colors.green,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: Colors.white,
-                                          width: 2,
-                                        ),
+                          return StreamBuilder<QuerySnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('chats')
+                                  .doc(chatDocs[index].id)
+                                  .collection('messages')
+                                  .orderBy('timestamp', descending: true)
+                                  .limit(1)
+                                  .snapshots(),
+                              builder: (context, messageSnapshot) {
+                                bool isUnread = false;
+                                if (messageSnapshot.hasData &&
+                                    messageSnapshot.data!.docs.isNotEmpty) {
+                                  final msgDoc = messageSnapshot.data!.docs.first;
+                                  final msgData = msgDoc.data() as Map<String, dynamic>;
+                                  final List<dynamic> seenByDyn = msgData['seenBy'] ?? [];
+                                  final List<String> seenBy = seenByDyn.cast<String>();
+                                  final String senderIdMsg = msgData['senderId'] ?? '';
+                                  if (senderIdMsg != currentUserId &&
+                                      !seenBy.contains(currentUserId)) {
+                                    isUnread = true;
+                                  }
+                                }
+
+                                return ListTile(
+                                  leading: Stack(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 24,
+                                        backgroundColor: const Color(0xFF2F4156),
+                                        backgroundImage: profilePhoto.isNotEmpty
+                                            ? NetworkImage(profilePhoto)
+                                            : null,
+                                        child: profilePhoto.isEmpty
+                                            ? const Icon(
+                                                Icons.person,
+                                                color: Colors.white,
+                                              )
+                                            : null,
                                       ),
+                                      if (isOnline)
+                                        Positioned(
+                                          right: 0,
+                                          bottom: 0,
+                                          child: Container(
+                                            height: 12,
+                                            width: 12,
+                                            decoration: BoxDecoration(
+                                              color: Colors.green,
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: Colors.white,
+                                                width: 2,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  title: Text(
+                                    username,
+                                    style: TextStyle(
+                                      fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
                                     ),
                                   ),
-                              ],
-                            ),
-                            title: Text(username),
-                            subtitle: Text(chatData['lastMessage'] ?? ''),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ChatScreen(
-                                    otherUserId: otherUserId,
-                                    username: username,
-                                    isOnline: isOnline,
-                                    profilePhotoUrl: profilePhoto,
+                                  subtitle: Text(
+                                    chatData['lastMessage'] ?? '',
+                                    style: TextStyle(
+                                      fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
-                          );
+                                  trailing: isUnread
+                                      ? const Icon(Icons.circle, color: Colors.blue, size: 10)
+                                      : null,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ChatScreen(
+                                          otherUserId: otherUserId,
+                                          username: username,
+                                          isOnline: isOnline,
+                                          profilePhotoUrl: profilePhoto,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            );
                         },
                       );
                     },
