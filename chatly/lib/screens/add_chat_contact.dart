@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart'; // Firebase Authentication'da
 import '../models/user_model.dart'; // UserModel'e ihtiyacımız var.
 import '../services/friendship_service.dart'; // FriendshipService'e ihtiyacımız var.
 import '../services/user_service.dart'; // Tüm kullanıcıları almak için UserService'e ihtiyacımız var.
+import 'chat_screen.dart';
 
 class AddChatContactPage extends StatefulWidget {
   const AddChatContactPage({super.key});
@@ -194,58 +195,36 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
                                     ),
                                   ),
                                 ),
-                                ...users.map(
-                                  (user) => ListTile(
+                                ...users.map((user) {
+                                  return ListTile(
                                     leading: CircleAvatar(
                                       backgroundImage:
                                           user.profilePhotoUrl != null &&
-                                              user.profilePhotoUrl!.isNotEmpty
-                                          ? NetworkImage(user.profilePhotoUrl!)
-                                          : null,
-                                      child:
-                                          user.profilePhotoUrl == null ||
+                                                  user.profilePhotoUrl!.isNotEmpty
+                                              ? NetworkImage(user.profilePhotoUrl!)
+                                              : null,
+                                      child: user.profilePhotoUrl == null ||
                                               user.profilePhotoUrl!.isEmpty
-                                          ? Text(
-                                              user.username![0].toUpperCase(),
-                                            )
+                                          ? Text(user.username![0].toUpperCase())
                                           : null,
                                     ),
-                                    title: Text(
-                                      user.username ?? 'Bilinmeyen Kullanıcı',
-                                    ),
+                                    title: Text(user.username ?? 'Bilinmeyen Kullanıcı'),
                                     subtitle: Text(user.email),
                                     onTap: () {
-                                      // TODO: Buraya tıklayınca sohbet ekranına gitme veya profilini görüntüleme mantığı eklenebilir.
-                                      // Navigator.push(context, MaterialPageRoute(builder: (context) => ChatScreen(contact: user)));
-                                      ScaffoldMessenger.of(
+                                      Navigator.push(
                                         context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            '${user.username} ile sohbet başlatıldı!',
+                                        MaterialPageRoute(
+                                          builder: (context) => ChatScreen(
+                                            otherUserId: user.uid,
+                                            username: user.username,
+                                            profilePhotoUrl: user.profilePhotoUrl ?? '',
+                                            isOnline: user.isOnline,
                                           ),
                                         ),
                                       );
                                     },
-                                    trailing: IconButton(
-                                      icon: const Icon(
-                                        Icons.chat_bubble_outline,
-                                      ),
-                                      onPressed: () {
-                                        // TODO: Buraya sohbet başlatma veya başka bir eylem eklenebilir
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              '${user.username} ile sohbet başlatıldı!',
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
+                                  );
+                                }).toList(),
                                 const Divider(
                                   height: 1,
                                   indent: 16,

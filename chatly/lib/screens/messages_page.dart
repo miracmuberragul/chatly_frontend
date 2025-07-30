@@ -122,11 +122,11 @@ class _MessagesPageState extends State<MessagesPage> {
                         (id) => id != currentUserId,
                       );
 
-                      return FutureBuilder<DocumentSnapshot>(
-                        future: FirebaseFirestore.instance
+                      return StreamBuilder<DocumentSnapshot>(
+                        stream: FirebaseFirestore.instance
                             .collection('users')
                             .doc(otherUserId)
-                            .get(),
+                            .snapshots(),
                         builder: (context, userSnapshot) {
                           if (!userSnapshot.hasData ||
                               !userSnapshot.data!.exists) {
@@ -146,17 +146,36 @@ class _MessagesPageState extends State<MessagesPage> {
                           }
 
                           return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: Color(0xFF2F4156),
-                              backgroundImage: profilePhoto.isNotEmpty
-                                  ? NetworkImage(profilePhoto)
-                                  : null,
-                              child: profilePhoto.isEmpty
-                                  ? const Icon(
-                                      Icons.person,
-                                      color: Colors.white,
-                                    )
-                                  : null,
+                            leading: Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 24,
+                                  backgroundColor: const Color(0xFF2F4156),
+                                  backgroundImage: profilePhoto.isNotEmpty
+                                      ? NetworkImage(profilePhoto)
+                                      : null,
+                                  child: profilePhoto.isEmpty
+                                      ? const Icon(
+                                          Icons.person,
+                                          color: Colors.white,
+                                        )
+                                      : null,
+                                ),
+                                if (isOnline)
+                                  Positioned(
+                                    right: 0,
+                                    bottom: 0,
+                                    child: Container(
+                                      height: 12,
+                                      width: 12,
+                                      decoration: BoxDecoration(
+                                        color: Colors.green,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.white, width: 2),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                             title: Text(username),
                             subtitle: Text(chatData['lastMessage'] ?? ''),

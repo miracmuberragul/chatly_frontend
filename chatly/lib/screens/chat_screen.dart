@@ -1,5 +1,6 @@
 import 'package:chatly/models/message_model.dart';
 import 'package:chatly/services/message_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 
@@ -27,6 +28,22 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  String _formatLastSeen(Timestamp? lastSeen) {
+    if (lastSeen == null) return 'offline';
+    final now = DateTime.now();
+    final lastSeenDateTime = lastSeen.toDate();
+    final difference = now.difference(lastSeenDateTime);
+
+    if (difference.inMinutes < 1) {
+      return 'last seen just now';
+    } else if (difference.inHours < 1) {
+      return 'last seen ${difference.inMinutes} minutes ago';
+    } else if (difference.inDays < 1) {
+      return 'last seen at ${DateFormat.Hm().format(lastSeenDateTime)}';
+    } else {
+      return 'last seen on ${DateFormat.yMd().format(lastSeenDateTime)}';
+    }
+  }
   final SocketService _socketService = SocketService();
   bool _isOtherUserTyping = false;
   StreamSubscription? _socketSubscription;
@@ -125,39 +142,56 @@ class _ChatScreenState extends State<ChatScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundImage: NetworkImage(widget.profilePhotoUrl),
-              backgroundColor: Colors.grey[300],
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        title: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.otherUserId)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const SizedBox(); // Loading state
+            }
+            final userData = snapshot.data!.data() as Map<String, dynamic>;
+            final isOnline = userData['isOnline'] ?? false;
+            final lastSeen = userData['lastSeen'] as Timestamp?;
+
+            return Row(
               children: [
-                Text(
-                  widget.username,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                CircleAvatar(
+                  radius: 18,
+                  backgroundImage: NetworkImage(widget.profilePhotoUrl),
+                  backgroundColor: Colors.grey[300],
                 ),
-                Text(
-                  _isOtherUserTyping
-                      ? 'typing...'
-                      : (widget.isOnline ? 'online' : 'offline'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontStyle: _isOtherUserTyping
-                        ? FontStyle.italic
-                        : FontStyle.normal,
-                    color: Colors.white70,
-                  ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.username,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      _isOtherUserTyping
+                          ? 'typing...'
+                          : isOnline
+                              ? 'online'
+                              : _formatLastSeen(lastSeen),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: _isOtherUserTyping
+                            ? FontStyle.italic
+                            : FontStyle.normal,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+          },
         ),
       ),
       body: Column(
