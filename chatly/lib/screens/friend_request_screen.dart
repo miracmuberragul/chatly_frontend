@@ -89,23 +89,29 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.check, color: Colors.green),
-                      onPressed: () {
+                      onPressed: () async {
                         if (user.uid != null) {
-                          _friendshipService.acceptFriendRequest(
+                          await _friendshipService.acceptFriendRequest(
                             user.uid,
                             currentUserId,
                           );
+                          setState(() {
+                            _loadFriendRequests();
+                          });
                         }
                       },
                     ),
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.red),
-                      onPressed: () {
+                      onPressed: () async {
                         if (user.uid != null) {
-                          _friendshipService.declineFriendRequest(
+                          await _friendshipService.declineFriendRequest(
                             user.uid,
                             currentUserId,
                           );
+                          setState(() {
+                            _loadFriendRequests();
+                          });
                         }
                       },
                     ),
