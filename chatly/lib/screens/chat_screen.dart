@@ -148,7 +148,22 @@ class _ChatScreenState extends State<ChatScreen> {
     final bubbleOther = cs.surface;
     final onBubbleOther = cs.onSurface;
 
-    return Scaffold(
+    ImageProvider? _profileImageProvider(String url){
+    if(url.isEmpty){
+      return null;
+    }
+    if(url.startsWith('data:image')){
+      try{
+        final bytes = base64Decode(url.split(',').last);
+        return MemoryImage(bytes);
+      }catch(_){
+        return null;
+      }
+    }
+    return NetworkImage(url);
+  }
+
+  return Scaffold(
       backgroundColor: cs.tertiary,
       appBar: AppBar(
         backgroundColor: cs.background,
@@ -174,9 +189,7 @@ class _ChatScreenState extends State<ChatScreen> {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundImage: widget.profilePhotoUrl.isNotEmpty
-                      ? NetworkImage(widget.profilePhotoUrl)
-                      : null,
+                  backgroundImage: _profileImageProvider(widget.profilePhotoUrl),
                   backgroundColor: isDark ? Colors.grey[700] : Colors.grey[300],
                   child: widget.profilePhotoUrl.isEmpty
                       ? const Icon(Icons.person, size: 18)
