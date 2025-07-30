@@ -276,7 +276,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    message.text,
+                                    message.text!,
                                     style: TextStyle(
                                       color: isMe ? onBubbleMe : onBubbleOther,
                                       fontSize: 16,
