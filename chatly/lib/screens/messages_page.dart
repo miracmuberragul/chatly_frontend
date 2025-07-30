@@ -179,6 +179,7 @@ class _MessagesPageState extends State<MessagesPage> {
                                             ? const Icon(
                                                 Icons.person,
                                                 color: Colors.white,
+                                                size: 24,
                                               )
                                             : null,
                                       ),
@@ -217,6 +218,12 @@ class _MessagesPageState extends State<MessagesPage> {
                                       ? const Icon(Icons.circle, color: Colors.blue, size: 10)
                                       : null,
                                   onTap: () {
+                                    // Final check to ensure we don't pass an invalid URL
+                                    final validProfilePhotoUrl =
+                                        profilePhoto.startsWith('http')
+                                            ? profilePhoto
+                                            : '';
+
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
@@ -224,7 +231,7 @@ class _MessagesPageState extends State<MessagesPage> {
                                           otherUserId: otherUserId,
                                           username: username,
                                           isOnline: isOnline,
-                                          profilePhotoUrl: profilePhoto,
+                                          profilePhotoUrl: validProfilePhotoUrl,
                                         ),
                                       ),
                                     );

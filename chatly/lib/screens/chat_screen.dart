@@ -2,6 +2,7 @@ import 'package:chatly/models/message_model.dart';
 import 'package:chatly/services/message_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:chatly/services/storage_service.dart'; // Import StorageService
+import 'dart:convert'; // For base64
 import 'package:image_picker/image_picker.dart'; // Import image_picker
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -172,8 +173,13 @@ class _ChatScreenState extends State<ChatScreen> {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundImage: NetworkImage(widget.profilePhotoUrl),
+                  backgroundImage: widget.profilePhotoUrl.isNotEmpty
+                      ? NetworkImage(widget.profilePhotoUrl)
+                      : null,
                   backgroundColor: isDark ? Colors.grey[700] : Colors.grey[300],
+                  child: widget.profilePhotoUrl.isEmpty
+                      ? const Icon(Icons.person, size: 18)
+                      : null,
                 ),
                 const SizedBox(width: 8),
                 Column(
@@ -249,6 +255,38 @@ class _ChatScreenState extends State<ChatScreen> {
                           final bool isMe = message.senderId == _currentUserId;
                           final bool seen = message.seenBy.length > 1;
 
+                          Widget messageContent;
+                          if (message.type == 'image' && message.imageUrl != null) {
+                            if (message.imageUrl!.startsWith('data:image')) {
+                              // Handle base64 image
+                              final base64Str = message.imageUrl!.split(',').last;
+                              messageContent = Image.memory(
+                                base64Decode(base64Str),
+                                width: 180,
+                                fit: BoxFit.cover,
+                              );
+                            } else if (message.imageUrl!.startsWith('http')) {
+                              // Handle network image
+                              messageContent = Image.network(
+                                message.imageUrl!,
+                                width: 180,
+                                fit: BoxFit.cover,
+                              );
+                            } else {
+                              // Handle invalid or unknown image URL format
+                              messageContent = const Icon(Icons.broken_image, size: 40, color: Colors.red);
+                            }
+                          } else {
+                            // Handle text message
+                            messageContent = Text(
+                              message.text ?? '',
+                              style: TextStyle(
+                                color: isMe ? onBubbleMe : onBubbleOther,
+                                fontSize: 16,
+                              ),
+                            );
+                          }
+
                           return Align(
                             alignment: isMe
                                 ? Alignment.centerRight
@@ -275,13 +313,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  Text(
-                                    message.text!,
-                                    style: TextStyle(
-                                      color: isMe ? onBubbleMe : onBubbleOther,
-                                      fontSize: 16,
-                                    ),
-                                  ),
+                                  messageContent,
                                   const SizedBox(height: 4),
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -337,8 +369,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.add, color: cs.primary),
-                      onPressed: () {},
+                      icon: Icon(Icons.add_a_photo, color: cs.primary),
+                      onPressed: _sendImage,
                     ),
                     Expanded(
                       child: TextField(
@@ -385,36 +417,41 @@ class _ChatScreenState extends State<ChatScreen> {
   void _sendImage() async {
     print('1. _sendImage function called.');
     try {
-      final XFile? image = await _storageService.pickImage();
+      // Use image picker directly instead of storage service
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-      if (image != null) {
+      if (image != null && image.path.isNotEmpty) {
         print('2. Image picked successfully: ${image.path}');
-        // Show a loading indicator if you want
-        print('3. Uploading image to storage...');
-        final String? imageUrl = await _storageService.uploadImage(
-          _chatId,
-          image,
-        );
+        print('3. Converting to base64...');
+        final bytes = await image.readAsBytes();
+        final ext =
+            image.name.contains('.') ? image.name.split('.').last : 'jpg';
+        final base64Str = base64Encode(bytes);
+        final dataUri = 'data:image/$ext;base64,$base64Str';
+        print('4. base64 length: ${dataUri.length}');
 
-        if (imageUrl != null) {
-          print('4. Image uploaded successfully. URL: $imageUrl');
-          print('5. Sending image message...');
-          _messageService.sendMessage(
-            chatId: _chatId,
-            senderId: _currentUserId,
-            otherUserId: widget.otherUserId,
-            imageUrl: imageUrl,
-            type: 'image',
-          );
-          print('6. Image message sent.');
-        } else {
-          print('Error: Image URL is null after upload.');
+        if (dataUri.length > 900000) {
+          print('Image too large for Firestore document.');
+          // Optionally, show a snackbar to the user
+          return;
         }
+
+        print('5. Sending image message...');
+        _messageService.sendMessage(
+          chatId: _chatId,
+          senderId: _currentUserId,
+          otherUserId: widget.otherUserId,
+          imageUrl: dataUri,
+          type: 'image',
+        );
+        print('6. Image message sent.');
       } else {
         print('Image picking cancelled or failed.');
       }
     } catch (e) {
       print('An error occurred in _sendImage: $e');
+      // Optionally, show an error message to the user
     }
   }
 }

@@ -15,8 +15,12 @@ class StorageService {
   // Upload image to Firebase Storage and get the download URL
   Future<String?> uploadImage(String chatId, XFile imageFile) async {
     try {
-      final String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-      final Reference storageRef = _storage.ref().child('chats/$chatId/$fileName');
+      // Ensure path is safe: remove slashes from chatId
+      final safeChatId = chatId.replaceAll('/', '_');
+      // Preserve file extension if any so that Android/iOS know type
+      final ext = imageFile.name.contains('.') ? imageFile.name.split('.').last : 'jpg';
+      final String fileName = "${DateTime.now().millisecondsSinceEpoch}.$ext";
+      final Reference storageRef = _storage.ref().child('chats/$safeChatId/$fileName');
 
       // Upload the file
       final UploadTask uploadTask = storageRef.putFile(File(imageFile.path));
