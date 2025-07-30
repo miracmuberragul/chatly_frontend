@@ -61,7 +61,7 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kişiler'),
+        title: const Text('Contacts'),
         centerTitle: true,
         // Renkleri tema yönetsin; sabitleme yok.
         elevation: 0,
@@ -84,7 +84,7 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: 'Kişi Ara...',
+                  hintText: 'Search contacts',
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _searchText.isNotEmpty
                       ? IconButton(
