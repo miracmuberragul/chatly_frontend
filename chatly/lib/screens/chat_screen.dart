@@ -187,13 +187,29 @@ class _ChatScreenState extends State<ChatScreen> {
 
             return Row(
               children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundImage: _profileImageProvider(widget.profilePhotoUrl),
-                  backgroundColor: isDark ? Colors.grey[700] : Colors.grey[300],
-                  child: widget.profilePhotoUrl.isEmpty
-                      ? const Icon(Icons.person, size: 18)
-                      : null,
+                GestureDetector(
+                  onTap: () {
+                    if (widget.profilePhotoUrl.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => FullImageView(
+                            imageUrl: widget.profilePhotoUrl,
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  child: CircleAvatar(
+                    radius: 18,
+                    backgroundImage:
+                        _profileImageProvider(widget.profilePhotoUrl),
+                    backgroundColor:
+                        isDark ? Colors.grey[700] : Colors.grey[300],
+                    child: widget.profilePhotoUrl.isEmpty
+                        ? const Icon(Icons.person, size: 18)
+                        : null,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Column(
