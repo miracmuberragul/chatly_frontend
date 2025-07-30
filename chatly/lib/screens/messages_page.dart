@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'chat_screen.dart';
+import 'full_image_view.dart';
+import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 
 final TextEditingController _searchController = TextEditingController();
@@ -169,19 +171,33 @@ class _MessagesPageState extends State<MessagesPage> {
                                 return ListTile(
                                   leading: Stack(
                                     children: [
-                                      CircleAvatar(
-                                        radius: 24,
-                                        backgroundColor: const Color(0xFF2F4156),
-                                        backgroundImage: profilePhoto.isNotEmpty
-                                            ? NetworkImage(profilePhoto)
-                                            : null,
-                                        child: profilePhoto.isEmpty
-                                            ? const Icon(
-                                                Icons.person,
-                                                color: Colors.white,
-                                                size: 24,
-                                              )
-                                            : null,
+                                      GestureDetector(
+                                        onTap: () {
+                                          if (profilePhoto.startsWith('data:image') || profilePhoto.startsWith('http')) {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => FullImageView(imageUrl: profilePhoto),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        child: CircleAvatar(
+                                          radius: 24,
+                                          backgroundImage: profilePhoto.isNotEmpty
+                                              ? (profilePhoto.startsWith('data:image')
+                                                  ? MemoryImage(base64Decode(profilePhoto.split(',').last))
+                                                  : NetworkImage(profilePhoto) as ImageProvider)
+                                              : null,
+                                          backgroundColor: Colors.grey[400],
+                                          child: profilePhoto.isEmpty
+                                              ? const Icon(
+                                                  Icons.person,
+                                                  color: Colors.white,
+                                                  size: 24,
+                                                )
+                                              : null,
+                                        ),
                                       ),
                                       if (isOnline)
                                         Positioned(
@@ -220,7 +236,7 @@ class _MessagesPageState extends State<MessagesPage> {
                                   onTap: () {
                                     // Final check to ensure we don't pass an invalid URL
                                     final validProfilePhotoUrl =
-                                        profilePhoto.startsWith('http')
+                                        (profilePhoto.startsWith('http') || profilePhoto.startsWith('data:image'))
                                             ? profilePhoto
                                             : '';
 

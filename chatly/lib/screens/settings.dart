@@ -2,7 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+// Firebase Storage disabled for base64 approach
+import 'dart:convert';
 
 import 'package:provider/provider.dart';
 import '../theme/theme_controller.dart';
@@ -58,6 +59,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _imageFile = File(pickedImage.path);
       });
+      // Otomatik olarak kaydet
+      await _uploadProfilePhoto();
     }
   }
 
@@ -65,19 +68,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_imageFile == null || currentUser == null) return;
 
     try {
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('profile_photos')
-          .child('${currentUser!.uid}.jpg');
+      // Convert selected image to base64 and store directly in Firestore
+      final bytes = await _imageFile!.readAsBytes();
+      final ext = _imageFile!.path.contains('.') ? _imageFile!.path.split('.').last : 'jpg';
+      final base64Str = base64Encode(bytes);
+      final dataUri = 'data:image/$ext;base64,$base64Str';
 
-      await storageRef.putFile(_imageFile!);
-      final downloadUrl = await storageRef.getDownloadURL();
+      if (dataUri.length > 900000) {
+        _showSnackBar('Profile photo too large. Please choose a smaller one.');
+        return;
+      }
 
-      await _userService.updateUserProfilePhoto(currentUser!.uid, downloadUrl);
+      await _userService.updateUserProfilePhoto(currentUser!.uid, dataUri);
+      // Update local state
 
       if (!mounted) return;
       setState(() {
-        _profilePhotoUrl = downloadUrl;
+        _profilePhotoUrl = dataUri;
       });
       _showSnackBar('Profile photo updated successfully!');
     } catch (e) {
@@ -292,7 +299,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return FileImage(_imageFile!);
     }
     if (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty) {
-      return NetworkImage(_profilePhotoUrl!);
+      if (_profilePhotoUrl!.startsWith('data:image')) {
+        final bytes = base64Decode(_profilePhotoUrl!.split(',').last);
+        return MemoryImage(bytes);
+      } else if (_profilePhotoUrl!.startsWith('http')) {
+        return NetworkImage(_profilePhotoUrl!);
+      }
     }
     return const AssetImage('assets/images/logo.png');
   }
