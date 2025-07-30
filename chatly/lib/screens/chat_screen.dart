@@ -13,6 +13,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:intl/intl.dart';
 import 'package:chatly/services/socket_service.dart';
+import 'package:chatly/screens/full_image_view.dart';
 
 class ChatScreen extends StatefulWidget {
   final String otherUserId;
@@ -257,24 +258,41 @@ class _ChatScreenState extends State<ChatScreen> {
 
                           Widget messageContent;
                           if (message.type == 'image' && message.imageUrl != null) {
+                            Widget imageWidget;
                             if (message.imageUrl!.startsWith('data:image')) {
-                              // Handle base64 image
+                              // base64 image
                               final base64Str = message.imageUrl!.split(',').last;
-                              messageContent = Image.memory(
+                              imageWidget = Image.memory(
                                 base64Decode(base64Str),
                                 width: 180,
                                 fit: BoxFit.cover,
                               );
                             } else if (message.imageUrl!.startsWith('http')) {
-                              // Handle network image
-                              messageContent = Image.network(
+                              // network image
+                              imageWidget = Image.network(
                                 message.imageUrl!,
                                 width: 180,
                                 fit: BoxFit.cover,
                               );
                             } else {
-                              // Handle invalid or unknown image URL format
-                              messageContent = const Icon(Icons.broken_image, size: 40, color: Colors.red);
+                              imageWidget = const Icon(Icons.broken_image, size: 40, color: Colors.red);
+                            }
+
+                            // Wrap with tap-to-fullscreen if valid image
+                            if (message.imageUrl!.startsWith('data:image') || message.imageUrl!.startsWith('http')) {
+                              messageContent = GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => FullImageView(imageUrl: message.imageUrl!),
+                                    ),
+                                  );
+                                },
+                                child: imageWidget,
+                              );
+                            } else {
+                              messageContent = imageWidget;
                             }
                           } else {
                             // Handle text message
