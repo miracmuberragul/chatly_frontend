@@ -26,14 +26,12 @@ class _ContactScreenState extends State<ContactScreen> {
   }
 
   void _loadContacts() {
-    // 🔹 Burada Firestore'dan kullanıcıları yükleyin
-    // Örnek olarak, tüm kullanıcıları alıyoruz
     FirebaseFirestore.instance.collection('users').get().then((snapshot) {
       setState(() {
         allContacts = snapshot.docs
             .map((doc) => UserModel.fromJson(doc.data()))
             .toList();
-        filteredContacts = allContacts;
+        filteredContacts = List.from(allContacts);
       });
     });
   }
@@ -41,12 +39,17 @@ class _ContactScreenState extends State<ContactScreen> {
   void _filterContacts(String input) {
     setState(() {
       query = input;
-      filteredContacts = allContacts
-          .where(
-            (user) =>
-                user.username!.toLowerCase().contains(input.toLowerCase()),
-          )
-          .toList();
+      if (input.isEmpty) {
+        // arama boşsa tüm kullanıcıları göster
+        filteredContacts = List.from(allContacts);
+      } else {
+        filteredContacts = allContacts
+            .where(
+              (user) =>
+                  user.username!.toLowerCase().contains(input.toLowerCase()),
+            )
+            .toList();
+      }
     });
   }
 
@@ -81,6 +84,7 @@ class _ContactScreenState extends State<ContactScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: TextField(
+                onChanged: _filterContacts,
                 decoration: InputDecoration(
                   hintText: 'Search contact',
                   prefixIcon: const Icon(Icons.search),

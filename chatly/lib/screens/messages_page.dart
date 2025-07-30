@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'chat_screen.dart';
 
+final TextEditingController _searchController = TextEditingController();
+String _searchQuery = '';
+
 class MessagesPage extends StatefulWidget {
   const MessagesPage({super.key});
 
@@ -57,6 +60,12 @@ class _MessagesPageState extends State<MessagesPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.toLowerCase(); // küçük harfe çevir
+                  });
+                },
                 decoration: InputDecoration(
                   hintText: 'Search',
                   prefixIcon: const Icon(Icons.search),
@@ -96,12 +105,18 @@ class _MessagesPageState extends State<MessagesPage> {
 
                   final users = snapshot.data!.docs;
 
+                  final filteredUsers = users.where((doc) {
+                    final userData = doc.data() as Map<String, dynamic>;
+                    final username = userData['username']?.toLowerCase() ?? '';
+                    return username.contains(_searchQuery);
+                  }).toList();
+
                   return ListView.builder(
-                    itemCount: users.length,
+                    itemCount: filteredUsers.length,
                     itemBuilder: (context, index) {
                       final userData =
-                          users[index].data() as Map<String, dynamic>;
-                      final userId = users[index].id;
+                          filteredUsers[index].data() as Map<String, dynamic>;
+                      final userId = filteredUsers[index].id;
                       final username = userData['username'] ?? 'Unknown';
                       final profilePhoto = userData['profilePhotoUrl'] ?? '';
                       final isOnline = userData['isOnline'] ?? false;
@@ -117,9 +132,7 @@ class _MessagesPageState extends State<MessagesPage> {
                               : null,
                         ),
                         title: Text(username),
-                        subtitle: const Text(
-                          'Last message...',
-                        ), // istersen son mesajı da ekleriz
+                        subtitle: const Text('Last message...'),
                         onTap: () {
                           Navigator.push(
                             context,
