@@ -21,6 +21,8 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _oldPasswordController =
+      TextEditingController(); // Yeni: Eski parola için controller
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
@@ -34,7 +36,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUserData(); // Firebase initialize burada yapılmaz; main.dart'ta yapıldı.
+    _loadUserData();
   }
 
   Future<void> _loadUserData() async {
@@ -86,53 +88,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _profilePhotoUrl = dataUri;
       });
-      _showSnackBar('Profile photo updated successfully!');
+      _showSnackBar('Profil fotoğrafı başarıyla güncellendi!');
     } catch (e) {
-      _showSnackBar('Failed to upload profile photo: $e');
+      _showSnackBar('Profil fotoğrafı yüklenirken hata oluştu: $e');
     }
   }
 
   Future<void> _saveSettings() async {
     if (currentUser == null) {
-      _showSnackBar('No authenticated user found.');
+      _showSnackBar('Kimliği doğrulanmış kullanıcı bulunamadı.');
       return;
     }
 
-    // Username
+    // Kullanıcı adı güncelleme
     try {
       final existing = await _userService.getUserById(currentUser!.uid);
       final newUsername = _usernameController.text.trim();
       if (newUsername.isNotEmpty && newUsername != (existing?.username ?? '')) {
         await _userService.updateUsername(currentUser!.uid, newUsername);
-        _showSnackBar('Username updated successfully!');
+        _showSnackBar('Kullanıcı adı başarıyla güncellendi!');
       }
     } catch (e) {
-      _showSnackBar('Failed to update username: $e');
+      _showSnackBar('Kullanıcı adı güncellenirken hata oluştu: $e');
     }
 
-    // Password
-    if (_passwordController.text.isNotEmpty) {
+    // Parola güncelleme
+    // Eğer parola alanlarından herhangi biri doluysa işlem yap
+    if (_oldPasswordController.text.isNotEmpty ||
+        _passwordController.text.isNotEmpty ||
+        _confirmPasswordController.text.isNotEmpty) {
+      if (_oldPasswordController.text.isEmpty) {
+        _showSnackBar(
+          'Parolanızı değiştirmek için lütfen eski parolanızı girin.',
+        );
+        return;
+      }
+      if (_passwordController.text.isEmpty ||
+          _confirmPasswordController.text.isEmpty) {
+        _showSnackBar('Lütfen yeni parolanızı girin ve onaylayın.');
+        return;
+      }
       if (_passwordController.text == _confirmPasswordController.text) {
         try {
-          await _userService.changePassword(_passwordController.text);
-          _showSnackBar('Password updated successfully!');
+          // UserService üzerinden parola değiştirme metodunu çağır
+          await _userService.changePassword(
+            oldPassword: _oldPasswordController.text,
+            newPassword: _passwordController.text,
+            email: currentUser!.email!, // Mevcut kullanıcının e-postası
+          );
+
+          _showSnackBar('Parola başarıyla güncellendi!');
+          _oldPasswordController.clear(); // Eski parola alanını temizle
           _passwordController.clear();
           _confirmPasswordController.clear();
         } on FirebaseAuthException catch (e) {
-          if (e.code == 'requires-recent-login') {
-            _showSnackBar('Please re-authenticate to change your password.');
-          } else {
-            _showSnackBar('Failed to update password: ${e.message}');
-          }
+          // UserService'den gelen FirebaseAuthException hatalarını burada yakala
+          // e.message doğrudan kullanıcıya gösterilebilir, çünkü UserService'de özelleştirildi
+          _showSnackBar(e.message ?? 'Parola güncellenirken bir hata oluştu.');
         } catch (e) {
-          _showSnackBar('Failed to update password: $e');
+          // Diğer genel hataları yakala (örneğin UserService'den fırlatılan Exception)
+          _showSnackBar(
+            'Parola güncellenirken bilinmeyen bir hata oluştu: ${e.toString()}',
+          );
         }
       } else {
-        _showSnackBar('Passwords do not match.');
+        _showSnackBar('Yeni parolalar eşleşmiyor.');
       }
     }
 
-    // Photo
+    // Fotoğraf güncelleme
     if (_imageFile != null) {
       await _uploadProfilePhoto();
     }
@@ -158,7 +182,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Settings',
+          'Ayarlar',
           style: TextStyle(fontWeight: FontWeight.w500, fontSize: 24),
         ),
         elevation: 0,
@@ -190,7 +214,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ],
                           ),
                           child: Text(
-                            'Edit',
+                            'Düzenle',
                             style: TextStyle(
                               color: cs.primary,
                               fontWeight: FontWeight.w600,
@@ -206,27 +230,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 16),
 
               _buildTextField(
-                label: 'Username',
+                label: 'Kullanıcı Adı',
                 controller: _usernameController,
               ),
               const SizedBox(height: 16),
 
               _buildTextField(
-                label: 'Email',
+                label: 'E-posta',
                 controller: _emailController,
                 enabled: false,
               ),
               const SizedBox(height: 16),
 
+              // Yeni: Eski parola giriş alanı
               _buildTextField(
-                label: 'New Password',
+                label: 'Eski Parola',
+                controller: _oldPasswordController,
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
+
+              _buildTextField(
+                label: 'Yeni Parola',
                 controller: _passwordController,
                 obscureText: true,
               ),
               const SizedBox(height: 16),
 
               _buildTextField(
-                label: 'Confirm Password',
+                label: 'Yeni Parolayı Onayla', // Etiket güncellendi
                 controller: _confirmPasswordController,
                 obscureText: true,
               ),
@@ -243,12 +275,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 segments: const [
                   ButtonSegment<ThemeMode>(
                     value: ThemeMode.light,
-                    label: Text('Light'),
+                    label: Text('Aydınlık'),
                     icon: Icon(Icons.light_mode),
                   ),
                   ButtonSegment<ThemeMode>(
                     value: ThemeMode.dark,
-                    label: Text('Dark'),
+                    label: Text('Karanlık'),
                     icon: Icon(Icons.dark_mode),
                   ),
                 ],
@@ -267,11 +299,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ElevatedButton(
                 onPressed: _saveSettings,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF2F4156),
+                  backgroundColor: const Color(0xFF2F4156),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: const Text(
-                  'Save Settings',
+                  'Ayarları Kaydet',
                   style: TextStyle(color: Colors.white),
                 ),
               ),
@@ -283,7 +315,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
                 icon: const Icon(Icons.logout),
                 label: const Text(
-                  'Log Out',
+                  'Çıkış Yap',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),

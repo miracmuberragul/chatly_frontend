@@ -291,4 +291,20 @@ class FriendshipService {
               .toList(),
         );
   }
+
+  Future<void> cancelFriendRequest({
+    required String requesterId,
+    required String receiverId,
+  }) async {
+    final query = await _firestore
+        .collection(_friendshipCollection)
+        .where('requesterId', isEqualTo: requesterId)
+        .where('receiverId', isEqualTo: receiverId)
+        .where('status', isEqualTo: 'pending')
+        .get();
+
+    for (var doc in query.docs) {
+      await doc.reference.delete(); // isteği iptal et
+    }
+  }
 }
