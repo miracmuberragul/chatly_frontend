@@ -3,7 +3,6 @@ import 'package:chatly/services/apple_auth_page.dart';
 import 'package:flutter/material.dart';
 import 'package:chatly/services/auth_page.dart';
 
-
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -130,45 +129,43 @@ class _AuthScreenState extends State<AuthScreen> {
 
                   const SizedBox(height: 24),
 
-                  Row(
-                    children: const [
-                      Expanded(child: Divider(thickness: 1)),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8.0),
-                        child: Text("or"),
-                      ),
-                      Expanded(child: Divider(thickness: 1)),
-                    ],
-                  ),
-
+                  // Row(
+                  //   children: const [
+                  //     Expanded(child: Divider(thickness: 1)),
+                  //     Padding(
+                  //       padding: EdgeInsets.symmetric(horizontal: 8.0),
+                  //       child: Text("or"),
+                  //     ),
+                  //     Expanded(child: Divider(thickness: 1)),
+                  //   ],
+                  // ),
                   const SizedBox(height: 16),
 
-                  if (Platform.isAndroid)
-                    _socialLoginButton(
-                      logoPath: 'assets/images/google.png',
-                      label: 'Sign in with Google',
-                      onTap: () {
-                        debugPrint("Google Login Tapped");
-                        _authPage.signInWithGoogle(context);
-                      },
-                    )
-                  else if (Platform.isIOS)
-                    _socialLoginButton(
-                      logoPath: 'assets/images/apple.png',
-                      label: 'Sign in with Apple',
-                      onTap: () async {
-                        try {
-                          debugPrint("Apple Login Tapped");
-                          final userCredential = await _appleAuthPage.signInWithApple();
-                          debugPrint('Apple Sign-In başarılı: ${userCredential.user?.email}');
-                          // Giriş sonrası yönlendirme veya state güncelle
-                        } catch (e) {
-                          debugPrint('Apple Sign-In hatası: $e');
-                          // Hata mesajı gösterebilirsin
-                        }
-                      },
-                    ),
-
+                  // if (Platform.isAndroid)
+                  //   _socialLoginButton(
+                  //     logoPath: 'assets/images/google.png',
+                  //     label: 'Sign in with Google',
+                  //     onTap: () {
+                  //       debugPrint("Google Login Tapped");
+                  //       _authPage.signInWithGoogle(context);
+                  //     },
+                  //   )
+                  // else if (Platform.isIOS)
+                  //   _socialLoginButton(
+                  //     logoPath: 'assets/images/apple.png',
+                  //     label: 'Sign in with Apple',
+                  //     onTap: () async {
+                  //       try {
+                  //         debugPrint("Apple Login Tapped");
+                  //         final userCredential = await _appleAuthPage.signInWithApple();
+                  //         debugPrint('Apple Sign-In başarılı: ${userCredential.user?.email}');
+                  //         // Giriş sonrası yönlendirme veya state güncelle
+                  //       } catch (e) {
+                  //         debugPrint('Apple Sign-In hatası: $e');
+                  //         // Hata mesajı gösterebilirsin
+                  //       }
+                  //     },
+                  //   ),
                   const SizedBox(height: 20),
 
                   Row(
