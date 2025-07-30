@@ -26,10 +26,18 @@ class _ContactScreenState extends State<ContactScreen> {
   }
 
   void _loadContacts() {
+    final currentUserUid = FirebaseAuth
+        .instance
+        .currentUser
+        ?.uid; // Mevcut kullanıcının UID'sini al
+
     FirebaseFirestore.instance.collection('users').get().then((snapshot) {
       setState(() {
         allContacts = snapshot.docs
             .map((doc) => UserModel.fromJson(doc.data()))
+            .where(
+              (user) => user.uid != currentUserUid,
+            ) // Mevcut kullanıcıyı filtrele
             .toList();
         filteredContacts = List.from(allContacts);
       });
