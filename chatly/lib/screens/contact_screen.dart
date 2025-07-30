@@ -407,21 +407,29 @@ class _ContactScreenState extends State<ContactScreen> {
                         color: Color(0xFF2F4156),
                       ),
                     )
-                  : ListView.builder(
-                      itemCount: filteredContacts.length,
-                      itemBuilder: (context, index) {
-                        final UserModel user = filteredContacts[index];
+                  : (() {
+                      // ✅ Sadece arkadaş olmayanları göster
+                      final visibleContacts = filteredContacts
+                          .where(
+                            (user) => friendshipStatus[user.uid] != 'friends',
+                          )
+                          .toList();
 
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: const Color(0xFF2F4156),
-                            child: Icon(Icons.person, color: Colors.white),
-                          ),
-                          title: Text(user.username!),
-                          trailing: _buildActionButton(user),
-                        );
-                      },
-                    ),
+                      return ListView.builder(
+                        itemCount: visibleContacts.length,
+                        itemBuilder: (context, index) {
+                          final UserModel user = visibleContacts[index];
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: const Color(0xFF2F4156),
+                              child: Icon(Icons.person, color: Colors.white),
+                            ),
+                            title: Text(user.username!),
+                            trailing: _buildActionButton(user),
+                          );
+                        },
+                      );
+                    })(),
             ),
           ],
         ),
