@@ -127,7 +127,7 @@ class FriendshipService {
           .collection(_friendshipCollection)
           .where('requesterId', isEqualTo: requesterId)
           .where('receiverId', isEqualTo: receiverId)
-          .where('status', isEqualTo: 'accpeted')
+          .where('status', isEqualTo: 'pending')
           .limit(1)
           .get();
 
@@ -152,7 +152,7 @@ class FriendshipService {
           .collection(_friendshipCollection)
           .where('requesterId', isEqualTo: requesterId)
           .where('receiverId', isEqualTo: receiverId)
-          .where('status', isEqualTo: 'declined')
+          .where('status', isEqualTo: 'pending')
           .limit(1)
           .get();
 

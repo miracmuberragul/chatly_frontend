@@ -27,22 +27,6 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
         .getIncomingPendingFriendRequestsAsUsers(currentUserId);
   }
 
-  Future<void> _acceptFriendRequest(String requesterId) async {
-    await _friendshipService.acceptFriendRequest(requesterId, currentUserId);
-    setState(() {
-      // Refresh the list after accepting
-      _loadFriendRequests();
-    });
-  }
-
-  Future<void> _rejectFriendRequest(String requesterId) async {
-    await _friendshipService.rejectFriendRequest(requesterId, currentUserId);
-    setState(() {
-      // Refresh the list after rejecting
-      _loadFriendRequests();
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -107,7 +91,10 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                       icon: const Icon(Icons.check, color: Colors.green),
                       onPressed: () {
                         if (user.uid != null) {
-                          _acceptFriendRequest(user.uid!);
+                          _friendshipService.acceptFriendRequest(
+                            user.uid,
+                            currentUserId,
+                          );
                         }
                       },
                     ),
@@ -115,7 +102,10 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                       icon: const Icon(Icons.close, color: Colors.red),
                       onPressed: () {
                         if (user.uid != null) {
-                          _rejectFriendRequest(user.uid!);
+                          _friendshipService.declineFriendRequest(
+                            user.uid,
+                            currentUserId,
+                          );
                         }
                       },
                     ),
