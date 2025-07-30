@@ -380,8 +380,8 @@ class _ContactScreenState extends State<ContactScreen> {
 
                         return ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: cs.primary,
-                            child: Icon(Icons.person, color: cs.onPrimary),
+                            backgroundColor: const Color(0xFF2F4156),
+                            child: Icon(Icons.person, color: Colors.white),
                           ),
                           title: Text(user.username!),
                           trailing: _buildActionButton(user),
