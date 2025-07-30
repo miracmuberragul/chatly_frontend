@@ -84,30 +84,78 @@ class UserService {
     }
   }
 
-  /// Changes the user's password using Firebase Authentication.
-  /// This requires the user to be recently authenticated.
-  Future<void> changePassword(String newPassword) async {
+  /// Kullanıcının parolasını Firebase Authentication kullanarak değiştirir.
+  /// Bu işlem, kullanıcının yakın zamanda kimlik doğrulaması yapılmasını gerektirir.
+  ///
+  /// [oldPassword]: Kullanıcının mevcut parolası.
+  /// [newPassword]: Kullanıcının ayarlamak istediği yeni parola.
+  /// [email]: Kullanıcının e-posta adresi (yeniden kimlik doğrulama için gerekli).
+  Future<void> changePassword({
+    required String oldPassword,
+    required String newPassword,
+    required String email,
+  }) async {
+    User? user = _auth.currentUser;
+    if (user == null) {
+      log('Parola değiştirmek için kimliği doğrulanmış kullanıcı bulunamadı.');
+      throw FirebaseAuthException(
+        code: 'user-not-authenticated',
+        message: 'Parola değiştirmek için oturum açmış bir kullanıcı olmalı.',
+      );
+    }
+
     try {
-      final user = _auth.currentUser;
-      if (user != null) {
-        await user.updatePassword(newPassword);
-        log('Password changed successfully for user: ${user.uid}');
+      // Kullanıcıyı eski parolasıyla yeniden doğrula
+      AuthCredential credential = EmailAuthProvider.credential(
+        email: email,
+        password: oldPassword,
+      );
+
+      await user.reauthenticateWithCredential(credential);
+      log('Kullanıcı başarıyla yeniden doğrulandı.');
+
+      // Yeniden doğrulama başarılı olursa, parolayı güncelle
+      await user.updatePassword(newPassword);
+      log('Parola başarıyla değiştirildi: ${user.uid}');
+    } on FirebaseAuthException catch (e) {
+      log(
+        'Parola değiştirme hatası (FirebaseAuthException): ${e.code} - ${e.message}',
+      );
+      // Spesifik Firebase hatalarını daha anlamlı mesajlarla fırlat
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        throw FirebaseAuthException(
+          code: 'wrong-password',
+          message: 'Yanlış eski parola.',
+        );
+      } else if (e.code == 'user-not-found' || e.code == 'invalid-email') {
+        throw FirebaseAuthException(
+          code: 'invalid-user',
+          message: 'Yeniden doğrulama için geçersiz kullanıcı veya e-posta.',
+        );
+      } else if (e.code == 'requires-recent-login') {
+        throw FirebaseAuthException(
+          code: 'requires-recent-login',
+          message:
+              'Güvenlik nedeniyle, lütfen yakın zamanda tekrar giriş yapın ve tekrar deneyin.',
+        );
       } else {
-        log('No authenticated user found to change password.');
-        throw Exception('User not authenticated.');
+        throw FirebaseAuthException(
+          code: e.code,
+          message: 'Parola güncellenirken bir hata oluştu: ${e.message}',
+        );
       }
     } catch (e) {
-      log('Error changing password: $e');
-      rethrow;
+      log('Parola değiştirme sırasında bilinmeyen bir hata oluştu: $e');
+      throw Exception('Parola değiştirilirken bilinmeyen bir hata oluştu: $e');
     }
   }
 
   Future<void> signOut() async {
     try {
       await _auth.signOut();
-      log('User signed out successfully.');
+      log('Kullanıcı başarıyla çıkış yaptı.');
     } catch (e) {
-      log('Error signing out: $e');
+      log('Çıkış yaparken hata oluştu: $e');
       rethrow; // Hatanın UI katmanında yakalanabilmesi için yeniden fırlat
     }
   }
@@ -115,17 +163,15 @@ class UserService {
   /// Updates the user's online status and last seen timestamp.
   Future<void> updateUserStatus(String userId, {required bool isOnline}) async {
     try {
-      final Map<String, dynamic> updateData = {
-        'isOnline': isOnline,
-      };
+      final Map<String, dynamic> updateData = {'isOnline': isOnline};
       if (!isOnline) {
         updateData['lastSeen'] = FieldValue.serverTimestamp();
       }
 
       await _usersCollection.doc(userId).update(updateData);
-      log('User status updated for user ID: $userId. Online: $isOnline');
+      log('Kullanıcı durumu güncellendi: $userId. Çevrimiçi: $isOnline');
     } catch (e) {
-      log('Error updating user status: $e');
+      log('Kullanıcı durumu güncellenirken hata oluştu: $e');
       rethrow;
     }
   }
