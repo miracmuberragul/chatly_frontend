@@ -38,7 +38,11 @@ class _ContactScreenState extends State<ContactScreen> {
 
       final contacts = snapshot.docs
           .map((doc) => UserModel.fromJson(doc.data()))
-          .where((user) => user.uid != currentUserUid)
+          .where(
+            (user) =>
+                user.uid != currentUserUid &&
+                !(friendshipStatus[user.uid] == 'friends'),
+          ) // Buraya dikkat
           .toList();
 
       // Kullanıcıları hemen göster (butonlar Add olarak)
@@ -160,6 +164,36 @@ class _ContactScreenState extends State<ContactScreen> {
     });
   }
 
+  void _cancelFriendRequest(UserModel user) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      await friendshipService.cancelFriendRequest(
+        requesterId: currentUser.uid,
+        receiverId: user.uid,
+      );
+
+      setState(() {
+        friendshipStatus[user.uid] = 'none';
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Friend request canceled to ${user.username}'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to cancel request: $e'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   // 🔹 Buton durumunu ve metnini belirle
   Widget _buildActionButton(UserModel user) {
     final status = friendshipStatus[user.uid] ?? 'none';
@@ -179,14 +213,14 @@ class _ContactScreenState extends State<ContactScreen> {
 
       case 'sent':
         return ElevatedButton(
-          onPressed: null, // Disabled
+          onPressed: () => _cancelFriendRequest(user),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orange,
+            backgroundColor: Colors.red,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
           ),
-          child: const Text('Sent', style: TextStyle(color: Colors.white)),
+          child: const Text('Cancel', style: TextStyle(color: Colors.white)),
         );
 
       case 'received':
