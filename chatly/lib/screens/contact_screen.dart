@@ -384,58 +384,7 @@ class _ContactScreenState extends State<ContactScreen> {
                             child: Icon(Icons.person, color: cs.onPrimary),
                           ),
                           title: Text(user.username!),
-                          trailing: ElevatedButton(
-                            onPressed: alreadySent
-                                ? null
-                                : () async {
-                                    try {
-                                      final currentUser =
-                                          FirebaseAuth.instance.currentUser;
-                                      await friendshipService.sendFriendRequest(
-                                        requesterId: currentUser!.uid,
-                                        receiverId: user.uid,
-                                      );
-                                      setState(() {
-                                        sentRequests.add(user.username!);
-                                      });
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Friend request sent to ${user.username}',
-                                          ),
-                                        ),
-                                      );
-                                    } catch (e) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Failed to send request: $e',
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: alreadySent
-                                  ? Colors.grey
-                                  : const Color(0xFF2F4156),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: Text(
-                              alreadySent ? 'Sent' : 'Add',
-                              style: TextStyle(
-                                color: alreadySent
-                                    ? Colors.white
-                                    : const Color(0xFFFFFFFF),
-                              ),
-                            ),
-                          ),
+                          trailing: _buildActionButton(user),
                         );
                       },
                     ),
