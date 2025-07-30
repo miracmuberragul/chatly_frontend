@@ -236,12 +236,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 segments: const [
                   ButtonSegment<ThemeMode>(
                     value: ThemeMode.light,
-                    label: Text('Aydınlık'),
+                    label: Text('Light'),
                     icon: Icon(Icons.light_mode),
                   ),
                   ButtonSegment<ThemeMode>(
                     value: ThemeMode.dark,
-                    label: Text('Karanlık'),
+                    label: Text('Dark'),
                     icon: Icon(Icons.dark_mode),
                   ),
                 ],
