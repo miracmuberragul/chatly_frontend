@@ -20,13 +20,14 @@ class _MessagesPageState extends State<MessagesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     final currentUserId = FirebaseAuth.instance.currentUser!.uid;
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            //  Başlık ve + Butonu
+            // Başlık ve + Butonu
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
@@ -34,12 +35,12 @@ class _MessagesPageState extends State<MessagesPage> {
               ),
               child: Row(
                 children: [
-                  const Text(
+                  Text(
                     'Messages',
                     style: TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF2F4156),
+                      color: cs.primary, // 0xFF2F4156
                     ),
                   ),
                   const Spacer(),
@@ -58,7 +59,7 @@ class _MessagesPageState extends State<MessagesPage> {
               ),
             ),
 
-            //  Arama Çubuğu
+            // Arama Çubuğu
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: TextField(
@@ -72,16 +73,13 @@ class _MessagesPageState extends State<MessagesPage> {
                   hintText: 'Search',
                   prefixIcon: const Icon(Icons.search),
                   filled: true,
-                  fillColor: Colors.grey[200],
+                  fillColor: cs.surfaceVariant, // 0xFFC8D9E6
                   border: OutlineInputBorder(
-                    borderSide: const BorderSide(color: Color(0xFF2F4156)),
+                    borderSide: BorderSide(color: cs.primary),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(
-                      color: Color(0xFF2F4156),
-                      width: 2,
-                    ),
+                    borderSide: BorderSide(color: cs.primary, width: 2),
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
@@ -90,7 +88,7 @@ class _MessagesPageState extends State<MessagesPage> {
 
             const SizedBox(height: 16),
 
-            //  Mesaj Listesi
+            // Mesaj Listesi
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance

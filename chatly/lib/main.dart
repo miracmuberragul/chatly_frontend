@@ -1,31 +1,38 @@
-import 'package:chatly/screens/auth_screen.dart';
-import 'package:chatly/screens/home_page.dart';
-import 'package:chatly/screens/messages_page.dart';
-import 'package:chatly/screens/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-// AuthPage'inizi doğru yoldan import ettiğinizden emin olun.
-// Eğer AuthPage, lib/services/auth_page.dart konumundaysa, bu import doğrudur.
-import 'package:chatly/services/auth_page.dart';
-import 'package:chatly/screens/messages_page.dart';
-import 'package:chatly/screens/add_chat_contact.dart';
-
-// Firebase yapılandırma dosyası. Bu dosya, `flutterfire configure` komutuyla otomatik olarak oluşturulur.
-// Projenizde yoksa veya güncel değilse bu komutu çalıştırmanız gerekir.
 import 'firebase_options.dart';
 
-void main() async {
-  // Flutter motorunun widget ağacını başlatmadan önce tüm binding'lerin
-  // (örneğin Firebase gibi) doğru şekilde başlatıldığından emin olun.
-  WidgetsFlutterBinding.ensureInitialized();
+import 'package:provider/provider.dart';
+import 'theme/app_theme.dart';
+import 'theme/theme_controller.dart';
 
-  // Firebase'i uygulamanızla başlatın.
-  // `DefaultFirebaseOptions.currentPlatform` Firebase CLI tarafından oluşturulan
-  // platforma özel yapılandırma seçeneklerini kullanır.
+import 'package:chatly/screens/splash_screen.dart';
+import 'package:chatly/screens/home_page.dart';
+import 'package:chatly/screens/auth_screen.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Uygulamayı başlatın.
-  runApp(const MyApp());
+  runApp(const Bootstrap());
+}
+
+class Bootstrap extends StatelessWidget {
+  const Bootstrap({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<ThemeController>(
+      future: ThemeController.init(),
+      builder: (context, snap) {
+        final controller = snap.data ?? ThemeController(ThemeMode.system);
+        return ChangeNotifierProvider<ThemeController>.value(
+          value: controller,
+          child: const MyApp(),
+        );
+      },
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -33,9 +40,16 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.watch<ThemeController>();
+    // Debug: MyApp her rebuild olduğunda hangi mode’da?
+    debugPrint('MyApp.build -> themeMode: ${theme.mode}');
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Chatly',
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: context.watch<ThemeController>().mode,
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),

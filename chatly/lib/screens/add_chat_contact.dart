@@ -15,13 +15,10 @@ class AddChatContactPage extends StatefulWidget {
 
 class _AddChatContactPageState extends State<AddChatContactPage> {
   final FriendshipService _friendshipService = FriendshipService();
-  final UserService _userService = UserService(); // UserService'i de ekliyoruz
+  final UserService _userService = UserService();
   final TextEditingController _searchController = TextEditingController();
   String _searchText = '';
 
-  // Mevcut kullanıcının ID'si
-  // FirebaseAuth.instance.currentUser!.uid ile gerçek kullanıcı ID'sini alıyoruz.
-  // Uygulama başlamadan önce Firebase'in initialize edildiğinden emin olun.
   final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
   @override
@@ -33,9 +30,7 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
       });
     });
 
-    // currentUserId null ise kullanıcıyı oturum açmaya yönlendirme gibi bir mantık ekleyebilirsiniz.
     if (currentUserId == null) {
-      // Örneğin: Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginPage()));
       debugPrint(
         "Hata: currentUserId null. Kullanıcı oturum açmamış olabilir.",
       );
@@ -48,16 +43,12 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
     super.dispose();
   }
 
-  // Gelen kullanıcı listesini baş harflerine göre gruplayan fonksiyon.
   Map<String, List<UserModel>> _groupUsers(List<UserModel> users) {
     final Map<String, List<UserModel>> grouped = {};
-
     for (var user in users) {
       if (user.username != null && user.username!.isNotEmpty) {
         final String firstLetter = user.username![0].toUpperCase();
-        if (grouped[firstLetter] == null) {
-          grouped[firstLetter] = [];
-        }
+        grouped[firstLetter] ??= [];
         grouped[firstLetter]!.add(user);
       }
     }
@@ -66,17 +57,20 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Kişiler'),
         centerTitle: true,
-        backgroundColor:
-            Theme.of(context).appBarTheme.backgroundColor ?? Colors.white,
+        // Renkleri tema yönetsin; sabitleme yok.
         elevation: 0,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,
-            color: Theme.of(context).iconTheme.color ?? Colors.black,
+            color:
+                Theme.of(context).appBarTheme.foregroundColor ??
+                cs.onBackground,
           ),
           onPressed: () => Navigator.pop(context),
         ),
@@ -104,7 +98,7 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
                         )
                       : null,
                   filled: true,
-                  fillColor: Colors.grey[200],
+                  fillColor: cs.surfaceVariant, // 0xFFC8D9E6 benzeri
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -113,7 +107,7 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
               ),
             ),
 
-            // Kişi Listesi için StreamBuilder kullanımı
+            // Kişi Listesi
             Expanded(
               child: currentUserId == null
                   ? const Center(
@@ -122,10 +116,6 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
                       ),
                     )
                   : StreamBuilder<List<UserModel>>(
-                      // Buradaki stream'i hangi kullanıcıları göstermek istediğinize göre değiştirebilirsiniz.
-                      // Eğer tüm kullanıcıları gösterip arkadaşlık isteği gönderme mantığı ise:
-                      // stream: _userService.getUsersStream(),
-                      // Eğer sadece kabul edilmiş arkadaşları göstermek ise (mevcut mantık):
                       stream: _friendshipService.getAcceptedFriends(
                         currentUserId!,
                       ),
@@ -149,9 +139,7 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
                           );
                         }
 
-                        // Veri başarıyla geldiyse:
                         final List<UserModel> allUsers = snapshot.data!;
-                        // Arama metnine göre filtreleme
                         final List<UserModel> filteredUsers = allUsers.where((
                           user,
                         ) {
@@ -188,10 +176,10 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
                                   ),
                                   child: Text(
                                     letter,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.blueGrey,
+                                      color: cs.secondary,
                                     ),
                                   ),
                                 ),
@@ -199,16 +187,29 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
                                   return ListTile(
                                     leading: CircleAvatar(
                                       backgroundImage:
-                                          user.profilePhotoUrl != null &&
-                                                  user.profilePhotoUrl!.isNotEmpty
-                                              ? NetworkImage(user.profilePhotoUrl!)
-                                              : null,
-                                      child: user.profilePhotoUrl == null ||
-                                              user.profilePhotoUrl!.isEmpty
-                                          ? Text(user.username![0].toUpperCase())
+                                          (user.profilePhotoUrl != null &&
+                                              user.profilePhotoUrl!.isNotEmpty)
+                                          ? NetworkImage(user.profilePhotoUrl!)
+                                          : null,
+                                      backgroundColor:
+                                          (user.profilePhotoUrl == null ||
+                                              user.profilePhotoUrl!.isEmpty)
+                                          ? cs.primary
+                                          : null,
+                                      child:
+                                          (user.profilePhotoUrl == null ||
+                                              user.profilePhotoUrl!.isEmpty)
+                                          ? Text(
+                                              user.username![0].toUpperCase(),
+                                              style: TextStyle(
+                                                color: cs.onPrimary,
+                                              ),
+                                            )
                                           : null,
                                     ),
-                                    title: Text(user.username ?? 'Bilinmeyen Kullanıcı'),
+                                    title: Text(
+                                      user.username ?? 'Bilinmeyen Kullanıcı',
+                                    ),
                                     subtitle: Text(user.email),
                                     onTap: () {
                                       Navigator.push(
@@ -217,7 +218,8 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
                                           builder: (context) => ChatScreen(
                                             otherUserId: user.uid,
                                             username: user.username,
-                                            profilePhotoUrl: user.profilePhotoUrl ?? '',
+                                            profilePhotoUrl:
+                                                user.profilePhotoUrl ?? '',
                                             isOnline: user.isOnline,
                                           ),
                                         ),
@@ -229,7 +231,7 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
                                   height: 1,
                                   indent: 16,
                                   endIndent: 16,
-                                ), // Ayırıcı
+                                ),
                               ],
                             );
                           },
