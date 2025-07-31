@@ -1,9 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore'a direkt erişim için kalsın
-import 'package:firebase_auth/firebase_auth.dart'; // Firebase Authentication'dan UID almak için
-import '../models/user_model.dart'; // UserModel'e ihtiyacımız var.
-import '../services/friendship_service.dart'; // FriendshipService'e ihtiyacımız var.
-import '../services/user_service.dart'; // Tüm kullanıcıları almak için UserService'e ihtiyacımız var.
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:get/get.dart'; // <-- EKLENDİ
+
+import '../models/user_model.dart';
+import '../services/friendship_service.dart';
 import 'chat_screen.dart';
 
 class AddChatContactPage extends StatefulWidget {
@@ -15,7 +17,6 @@ class AddChatContactPage extends StatefulWidget {
 
 class _AddChatContactPageState extends State<AddChatContactPage> {
   final FriendshipService _friendshipService = FriendshipService();
-  final UserService _userService = UserService();
   final TextEditingController _searchController = TextEditingController();
   String _searchText = '';
 
@@ -25,16 +26,12 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
   void initState() {
     super.initState();
     _searchController.addListener(() {
-      setState(() {
-        _searchText = _searchController.text.toLowerCase();
-      });
+      if (mounted) {
+        setState(() {
+          _searchText = _searchController.text.toLowerCase();
+        });
+      }
     });
-
-    if (currentUserId == null) {
-      debugPrint(
-        "Hata: currentUserId null. Kullanıcı oturum açmamış olabilir.",
-      );
-    }
   }
 
   @override
@@ -61,18 +58,13 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Contacts'),
+        title: Text('contactsTitle'.tr), // <-- DEĞİŞTİ
         centerTitle: true,
-        // Renkleri tema yönetsin; sabitleme yok.
         elevation: 0,
+        // Geri butonu artık GetX ile yönetiliyor.
         leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color:
-                Theme.of(context).appBarTheme.foregroundColor ??
-                cs.onBackground,
-          ),
-          onPressed: () => Navigator.pop(context),
+          icon: Icon(Icons.arrow_back, color: cs.onBackground),
+          onPressed: () => Get.back(),
         ),
       ),
       body: SafeArea(
@@ -84,21 +76,16 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: 'Search contacts',
+                  hintText: 'searchContactsHint'.tr, // <-- DEĞİŞTİ
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _searchText.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() {
-                              _searchText = '';
-                            });
-                          },
+                          onPressed: () => _searchController.clear(),
                         )
                       : null,
                   filled: true,
-                  fillColor: cs.surfaceVariant, // 0xFFC8D9E6 benzeri
+                  fillColor: cs.surfaceVariant,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
@@ -110,11 +97,7 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
             // Kişi Listesi
             Expanded(
               child: currentUserId == null
-                  ? const Center(
-                      child: Text(
-                        "Oturum açmış kullanıcı bulunamadı. Lütfen giriş yapın.",
-                      ),
-                    )
+                  ? Center(child: Text('userNotLoggedIn'.tr)) // <-- DEĞİŞTİ
                   : StreamBuilder<List<UserModel>>(
                       stream: _friendshipService.getAcceptedFriends(
                         currentUserId!,
@@ -127,33 +110,34 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
                           );
                         }
                         if (snapshot.hasError) {
+                          // Parametreli çeviri
                           return Center(
-                            child: Text('Bir hata oluştu: ${snapshot.error}'),
+                            child: Text(
+                              'errorOccurred'.trParams({
+                                // <-- DEĞİŞTİ
+                                'error': snapshot.error.toString(),
+                              }),
+                            ),
                           );
                         }
                         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                          return const Center(
-                            child: Text(
-                              'Henüz hiç arkadaşınız yok. Başlamak için kişileri ekleyin!',
-                            ),
-                          );
+                          return Center(
+                            child: Text('noFriendsYet'.tr),
+                          ); // <-- DEĞİŞTİ
                         }
 
                         final List<UserModel> allUsers = snapshot.data!;
-                        final List<UserModel> filteredUsers = allUsers.where((
-                          user,
-                        ) {
-                          final usernameLower =
-                              user.username?.toLowerCase() ?? '';
-                          return usernameLower.contains(_searchText);
-                        }).toList();
+                        final List<UserModel> filteredUsers = allUsers
+                            .where(
+                              (user) => (user.username?.toLowerCase() ?? '')
+                                  .contains(_searchText),
+                            )
+                            .toList();
 
                         if (filteredUsers.isEmpty) {
-                          return const Center(
-                            child: Text(
-                              'Aradığınız kriterlere uygun kişi bulunamadı.',
-                            ),
-                          );
+                          return Center(
+                            child: Text('noContactsFound'.tr),
+                          ); // <-- DEĞİŞTİ
                         }
 
                         final Map<String, List<UserModel>> groupedUsers =
@@ -185,43 +169,23 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
                                 ),
                                 ...users.map((user) {
                                   return ListTile(
-                                    leading: CircleAvatar(
-                                      backgroundImage:
-                                          (user.profilePhotoUrl != null &&
-                                              user.profilePhotoUrl!.isNotEmpty)
-                                          ? NetworkImage(user.profilePhotoUrl!)
-                                          : null,
-                                      backgroundColor:
-                                          (user.profilePhotoUrl == null ||
-                                              user.profilePhotoUrl!.isEmpty)
-                                          ? cs.primary
-                                          : null,
-                                      child:
-                                          (user.profilePhotoUrl == null ||
-                                              user.profilePhotoUrl!.isEmpty)
-                                          ? Text(
-                                              user.username![0].toUpperCase(),
-                                              style: TextStyle(
-                                                color: cs.onPrimary,
-                                              ),
-                                            )
-                                          : null,
-                                    ),
+                                    leading: UserAvatar(
+                                      user: user,
+                                    ), // <-- YENİ WIDGET
                                     title: Text(
-                                      user.username ?? 'Bilinmeyen Kullanıcı',
-                                    ),
+                                      user.username ?? 'unknownUser'.tr,
+                                    ), // <-- DEĞİŞTİ
                                     subtitle: Text(user.email),
                                     onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => ChatScreen(
-                                            otherUserId: user.uid,
-                                            username: user.username,
-                                            profilePhotoUrl:
-                                                user.profilePhotoUrl ?? '',
-                                            isOnline: user.isOnline,
-                                          ),
+                                      // GetX ile navigasyon daha temiz
+                                      Get.to(
+                                        () => ChatScreen(
+                                          // <-- DEĞİŞTİ
+                                          otherUserId: user.uid,
+                                          username: user.username,
+                                          profilePhotoUrl:
+                                              user.profilePhotoUrl ?? '',
+                                          isOnline: user.isOnline,
                                         ),
                                       );
                                     },
@@ -242,6 +206,53 @@ class _AddChatContactPageState extends State<AddChatContactPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// YENİ YARDIMCI WIDGET: Profil fotoğrafını gösterme mantığını basitleştirir.
+class UserAvatar extends StatelessWidget {
+  final UserModel user;
+  const UserAvatar({super.key, required this.user});
+
+  ImageProvider _getImageProvider() {
+    final photoUrl = user.profilePhotoUrl;
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      // Base64 formatındaki Data URI'ını işle
+      if (photoUrl.startsWith('data:image')) {
+        try {
+          return MemoryImage(base64Decode(photoUrl.split(',').last));
+        } catch (e) {
+          debugPrint("Base64 Decode Error: $e");
+        }
+      }
+      // Normal bir URL ise NetworkImage kullan
+      else if (photoUrl.startsWith('http')) {
+        return NetworkImage(photoUrl);
+      }
+    }
+    // Hiçbir resim yoksa null döndür, bu durumda arka plan rengi ve baş harf gösterilecek.
+    return const AssetImage('assets/images/logo.png'); // Veya null döndürün
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final imageProvider = _getImageProvider();
+
+    return CircleAvatar(
+      backgroundImage: imageProvider,
+      backgroundColor: cs.primary, // Resim yoksa gösterilecek renk
+      child:
+          (imageProvider
+              is AssetImage) // Eğer resim yoksa veya yüklenemediyse baş harfi göster
+          ? Text(
+              user.username?.isNotEmpty == true
+                  ? user.username![0].toUpperCase()
+                  : '?',
+              style: TextStyle(color: cs.onPrimary),
+            )
+          : null,
     );
   }
 }
