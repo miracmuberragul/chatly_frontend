@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:chatly/models/user_model.dart';
 import 'package:chatly/screens/friend_request_screen.dart';
 import 'package:chatly/services/friendship_service.dart';
@@ -328,13 +330,36 @@ class _ContactScreenState extends State<ContactScreen> {
                               itemCount: visibleContacts.length,
                               itemBuilder: (context, index) {
                                 final UserModel user = visibleContacts[index];
+                                final profilePhotoUrl = user.profilePhotoUrl;
                                 return ListTile(
-                                  leading: const CircleAvatar(
-                                    backgroundColor: Color(0xFF2F4156),
-                                    child: Icon(
-                                      Icons.person,
-                                      color: Colors.white,
-                                    ),
+                                  leading: CircleAvatar(
+                                    radius: 24,
+                                    backgroundImage:
+                                        (profilePhotoUrl != null &&
+                                            profilePhotoUrl.isNotEmpty)
+                                        ? (profilePhotoUrl.startsWith(
+                                                'data:image',
+                                              )
+                                              ? MemoryImage(
+                                                      base64Decode(
+                                                        profilePhotoUrl
+                                                            .split(',')
+                                                            .last,
+                                                      ),
+                                                    )
+                                                    as ImageProvider
+                                              : NetworkImage(profilePhotoUrl))
+                                        : null,
+                                    backgroundColor: const Color(0xFF2F4156),
+                                    child:
+                                        (profilePhotoUrl == null ||
+                                            profilePhotoUrl.isEmpty)
+                                        ? const Icon(
+                                            Icons.person,
+                                            color: Colors.white,
+                                            size: 24,
+                                          )
+                                        : null,
                                   ),
                                   title: Text(user.username!),
                                   trailing: _buildActionButton(user),
