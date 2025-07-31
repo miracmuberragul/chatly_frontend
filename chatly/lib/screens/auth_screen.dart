@@ -40,7 +40,11 @@ class _AuthScreenState extends State<AuthScreen> {
                     isDark
                         ? 'assets/images/image.png'
                         : 'assets/images/logo.png',
-                    height: 130,
+
+                    height: isDark
+                        ? 130
+                        : 130, // karanlıkta biraz daha büyük çiz
+
                     fit: BoxFit.contain,
                     filterQuality: FilterQuality.high,
                   ),
@@ -172,29 +176,33 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
 
-                  // const SizedBox(height: 24),
-                  // // ------- Sosyal giriş (istersen aç) -------
-                  // if (Platform.isAndroid)
-                  //   _socialLoginButton(
-                  //     context: context,
-                  //     logoPath: 'assets/images/google.png',
-                  //     label: 'signInWithGoogle'.tr, // <-- DEĞİŞTİ
-                  //     onTap: () => _authPage.signInWithGoogle(context),
-                  //   )
-                  // else if (Platform.isIOS)
-                  //   _socialLoginButton(
-                  //     context: context,
-                  //     logoPath: 'assets/images/apple.png',
-                  //     label: 'signInWithApple'.tr, // <-- DEĞİŞTİ
-                  //     onTap: () async {
-                  //       try {
-                  //         await _appleAuthPage.signInWithApple();
-                  //       } catch (e) {
-                  //         debugPrint('Apple Sign-In hatası: $e');
-                  //       }
-                  //     },
-                  //   ),
+
+                  const SizedBox(height: 24),
+
+                  if (Platform.isAndroid)
+            _socialLoginButton(
+              context: context,
+              logoPath: 'assets/images/google.png',
+              label: 'Sign in with Google',
+              onTap: () {
+                // _authPage.signInWithGoogle(context);
+      },
+      ),
+
+                  // Add more social login buttons here if needed (e.g., Apple, Facebook)
+                  // const SizedBox(height: 16),
+                  // _socialLoginButton(
+                  //   context: context,
+                  //   logoPath: 'assets/images/apple.png',
+                  //   label: 'Sign in with Apple',
+                  //   onTap: () {
+                  //     // TODO: Implement Apple sign-in
+                  //   },
+                  // ),
                   const SizedBox(height: 20),
+
+
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

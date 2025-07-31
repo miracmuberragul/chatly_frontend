@@ -9,10 +9,17 @@ import 'package:shared_preferences/shared_preferences.dart'; // <-- EKLENDİ
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
+
 import 'l10n/translations.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_page.dart';
 import 'screens/auth_screen.dart';
+
+import 'package:chatly/screens/splash_screen.dart';
+import 'package:chatly/screens/home_page.dart';
+import 'package:chatly/screens/auth_screen.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
+
 
 void main() async {
   // Platform kanallarının hazır olmasını sağla.
