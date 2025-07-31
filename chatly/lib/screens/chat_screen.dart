@@ -85,21 +85,17 @@ class _ChatScreenState extends State<ChatScreen> {
       if (event['event'] == 'typing' &&
           event['chatId'] == _chatId &&
           event['userId'] != _currentUserId) {
-        print('✅ Typing event matched - setting _isOtherUserTyping = true');
+        final isTyping = event['isTyping'] == true;
+        print('✅ Typing event matched - isTyping: $isTyping');
         if (mounted) {
           setState(() {
-            _isOtherUserTyping = true;
+            _isOtherUserTyping = isTyping;
           });
         }
-        _typingTimer?.cancel();
-        _typingTimer = Timer(const Duration(seconds: 2), () {
-          print('⏰ Typing timer expired - setting _isOtherUserTyping = false');
-          if (mounted) {
-            setState(() {
-              _isOtherUserTyping = false;
-            });
-          }
-        });
+        // Eğer typing false ise timer'ı iptal et
+        if (!isTyping) {
+          _typingTimer?.cancel();
+        }
       } else if (event['event'] == 'chat_message' &&
           event['chatId'] == _chatId) {
         final message = MessageModel.fromWebSocket(event);
@@ -126,15 +122,26 @@ class _ChatScreenState extends State<ChatScreen> {
         now.difference(_lastTypingSent!) > const Duration(milliseconds: 500)) {
       _lastTypingSent = now;
       print(
-        '🔤 Sending typing event - chatId: $_chatId, userId: $_currentUserId',
+        '🔤 Sending typing event - chatId: $_chatId, userId: $_currentUserId, isTyping: true',
       );
       _socketService.sendEvent('typing', {
         'chatId': _chatId,
         'userId': _currentUserId,
+        'isTyping': true,
       });
     } else {
       print('🔤 Typing throttled - too soon');
     }
+    // Kullanıcı yazmayı bıraktığında typing'i false yap
+    _typingTimer?.cancel();
+    _typingTimer = Timer(const Duration(seconds: 2), () {
+      print('🔤 Typing stopped - sending isTyping: false');
+      _socketService.sendEvent('typing', {
+        'chatId': _chatId,
+        'userId': _currentUserId,
+        'isTyping': false,
+      });
+    });
   }
 
   void _sendMessage() {
