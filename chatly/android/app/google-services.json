@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "458343154528-asn9be78ju7hmn3ld7qol4897l3m0k3c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.chatly",
+            "certificate_hash": "cb3e880824d7196118d7d31390249f404b2b0ea1"
+          }
+        },
+        {
           "client_id": "458343154528-02e650iivjtk781pd7onsmc11e0ijjqh.apps.googleusercontent.com",
           "client_type": 3
         }

@@ -76,7 +76,6 @@ final Map<String, String> enUS = {
 
   // Snackbar Mesajları
   'success': 'Success',
-  'info': 'Info',
   'requestSent': 'Friend request sent to @name.',
   'requestFailed': 'Failed to send request: @error',
   'requestCanceled': 'Friend request to @name canceled.',
