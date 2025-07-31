@@ -1,3 +1,5 @@
+// lib/services/message_service.dart
+
 import 'dart:developer';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -13,57 +15,59 @@ class MessageService {
   Future<void> sendMessage({
     required String chatId,
     required String senderId,
-    required String otherUserId, // Required to create the chat document correctly
+    required String otherUserId,
     String? text,
     String? imageUrl,
     required String type,
   }) async {
-    // Basic validation: Do not send empty messages or images without a URL
     if ((type == 'text' && (text == null || text.trim().isEmpty)) ||
         (type == 'image' && (imageUrl == null || imageUrl.isEmpty))) {
       return;
     }
 
     try {
-      final messagesCollection =
-          _chatsCollection.doc(chatId).collection('messages');
-
-      // Create a new message object
+      final messagesCollection = _chatsCollection
+          .doc(chatId)
+          .collection('messages');
       final newMessage = MessageModel(
-        id: messagesCollection.doc().id, // Firestore will generate the ID
+        id: messagesCollection.doc().id,
         chatId: chatId,
         senderId: senderId,
         text: text,
         imageUrl: imageUrl,
         type: type,
         timestamp: Timestamp.now(),
-        seenBy: [senderId], // Initially, only the sender has 'seen' it
+        seenBy: [senderId],
       );
 
-      // Use a transaction to ensure atomicity
       await _firestore.runTransaction((transaction) async {
         final newMessageRef = messagesCollection.doc(newMessage.id);
         final chatDocRef = _chatsCollection.doc(chatId);
 
-        // Set the new message in the subcollection
+        // 1. Set the new message in the subcollection
         transaction.set(newMessageRef, newMessage.toFirestore());
 
-        // Update the parent chat document with last message info
-        transaction.set(
-          chatDocRef,
-          {
-            'members': [senderId, otherUserId],
-            'lastMessage': type == 'image' ? '📷 Photo' : newMessage.text,
-            'lastMessageTimestamp': newMessage.timestamp,
-          },
-          SetOptions(merge: true),
-        );
+        // 2. Update the parent chat document with last message info
+        transaction.set(chatDocRef, {
+          'members': [senderId, otherUserId],
+          'lastMessage': type == 'image'
+              ? 'Photo'
+              : newMessage
+                    .text, // "Photo" metnini isterseniz çeviri anahtarı yapabilirsiniz.
+          'lastMessageTimestamp': newMessage.timestamp,
+          // *** EKLENEN SATIR ***
+          'lastMessageType':
+              type, // Mesajın tipini ('text' veya 'image') kaydet.
+          // *** EKLENEN SATIR SONU ***
+        }, SetOptions(merge: true));
       });
     } catch (e) {
       log('Error sending message: $e');
       rethrow;
     }
   }
+
+  // ... (getMessagesStream ve diğer metotlar aynı kalır) ...
 
   /// Get a real-time stream of messages for a specific chat
   Stream<List<MessageModel>> getMessagesStream(String chatId) {

@@ -1,74 +1,102 @@
+import 'dart:developer';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthPage {
-  late final String userId;
+  String? userId;
 
-  //    Future<void> signInWithGoogle(BuildContext context) async {
-  //     try {
-  //       final googleSignIn = GoogleSignIn();
-  //       final googleUser = await googleSignIn.signIn();
+  // Hata aldığınız yer burasıydı. _googleSignIn'ı sınıfın bir özelliği olarak tanımlamalısınız.
+  // Bu satırı AuthPage sınıfının hemen içine, diğer özelliklerin (userId gibi) yanına ekleyin.
+  final GoogleSignIn _googleSignIn =
+      GoogleSignIn(); // <-- Bu satırın yeri önemli!
 
-  //       if (googleUser == null) {
-  //         debugPrint("Google Sign-In cancelled by user.");
-  //         return;
-  //       }
+  AuthPage() {
+    userId = null;
+  }
 
-  //       final googleAuth = await googleUser.authentication;
+  /// Google ile oturum açma işlemini gerçekleştirir.
+  /// Başarılı olursa Firebase'e kaydeder veya mevcut kullanıcıyı doğrular.
+  Future<void> signInWithGoogle(BuildContext context) async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
-  //       final credential = GoogleAuthProvider.credential(
-  //         accessToken: googleAuth.accessToken,
-  //         idToken: googleAuth.idToken,
-  //       );
+      if (googleUser == null) {
+        debugPrint(
+          'Google oturum açma işlemi kullanıcı tarafından iptal edildi.',
+        );
+        return;
+      }
 
-  //       final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
-  //       final user = userCredential.user;
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
 
-  //       if (user != null) {
-  //         userId = user.uid;
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(
+        credential,
+      );
+      final user = userCredential.user;
 
-  //         final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
-  //         final snapshot = await userDoc.get();
+      if (user != null) {
+        userId = user.uid;
 
-  //         if (!snapshot.exists) {
-  //           await userDoc.set({
-  //             'uid': user.uid,
-  //             'email': user.email,
-  //             'name': user.displayName ?? '',
-  //             'photoUrl': user.photoURL ?? '',
-  //             'createdAt': FieldValue.serverTimestamp(),
-  //           });
+        final userDoc = FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid);
+        final snapshot = await userDoc.get();
 
-  //           debugPrint('New user added to Firestore: ${user.email}');
-  //         } else {
-  //           debugPrint('User already exists in Firestore: ${user.email}');
-  //         }
+        if (!snapshot.exists) {
+          // Kullanıcı Firestore'a daha önce kaydedilmediyse (YENİ KULLANICI)
+          await userDoc.set({
+            'uid': user.uid,
+            'name': user.displayName,
+            'email': user.email,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+          debugPrint('Yeni kullanıcı Firestore\'a kaydedildi: ${user.email}');
+        } else {
+          // Kullanıcı zaten Firestore'da mevcut (MEVCUT KULLANICI GİRİŞİ)
+          debugPrint('Mevcut kullanıcı Google ile giriş yaptı: ${user.email}');
+        }
 
-  //         if (context.mounted) {
-  //           Navigator.pushReplacementNamed(context, '/home');
-  //         }
-  //       }
-  //     } on FirebaseAuthException catch (e) {
-  //       debugPrint("FirebaseAuthException: ${e.code} - ${e.message}");
-  //       _showErrorSnackbar(context, "Firebase Auth error: ${e.message}");
-  //     } catch (e) {
-  //       debugPrint("Unknown Google Sign-In error: $e");
-  //       _showErrorSnackbar(context, "Beklenmeyen bir hata oluştu.");
-  //     }
-  //   }
+        // --- ÇÖZÜM: BAŞARILI GİRİŞ SONRASI YÖNLENDİRME ---
+        // Hem yeni kullanıcı hem de mevcut kullanıcı için, işlem başarılı olduğunda
+        // ana sayfaya yönlendir.
+        if (context.mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+        // ----------------------------------------------------
+      }
+    } on FirebaseAuthException catch (e) {
+      debugPrint('Firebase Kimlik Doğrulama Hatası: ${e.code} - ${e.message}');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Oturum açma hatası: ${e.message ?? "Bir hata oluştu."}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      log('Google Oturum Açma Genel Hatası: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Beklenmedik bir hata oluştu: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
-  //   void _showErrorSnackbar(BuildContext context, String message) {
-  //     if (context.mounted) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text(message), backgroundColor: Colors.red),
-  //       );
-  //     }
-  //   }
-  // }
-
-  // Email/Password Sign-Up (üye kayıt)
+  /// E-posta ve şifre ile yeni bir kullanıcı kaydı oluşturur.
   Future<void> signUpWithEmailPassword(
     BuildContext context,
     String email,
@@ -76,42 +104,47 @@ class AuthPage {
     String username,
   ) async {
     try {
+      // E-posta ve şifre ile Firebase'de yeni bir kullanıcı oluştur.
       final userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
-      final user = userCredential.user;
-      userId = user?.uid ?? '';
+      final user = userCredential.user; // Oluşturulan kullanıcıyı al.
+      userId = user?.uid; // userId'yi ata (null güvenli atama).
+
       if (user != null) {
+        // Kullanıcı Firestore'a kaydedilmediyse kaydet.
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'uid': user.uid,
           'email': user.email,
-          'username': username,
+          'username': username, // Kullanıcı adı
           'createdAt': FieldValue.serverTimestamp(),
         });
-        debugPrint('New user signed up with email: ${user.email}');
+        debugPrint('E-posta ile yeni kullanıcı kaydoldu: ${user.email}');
 
-        // ✅ Yönlendirme
+        // Başarılı kayıttan sonra '/home' sayfasına yönlendir.
         if (context.mounted) {
           Navigator.pushReplacementNamed(context, '/home');
         }
       }
     } on FirebaseAuthException catch (e) {
-      debugPrint('Firebase Auth Error (Sign Up): ${e.code} - ${e.message}');
+      // Firebase kimlik doğrulama hatalarını yakala.
+      debugPrint(
+        'Firebase Kimlik Doğrulama Hatası (Kayıt): ${e.code} - ${e.message}',
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Sign-up error: ${e.message ?? "An error occurred."}',
-            ),
+            content: Text('Kayıt hatası: ${e.message ?? "Bir hata oluştu."}'),
             backgroundColor: Colors.red,
           ),
         );
       }
     } catch (e) {
-      debugPrint('General Sign-Up Error: $e');
+      // Diğer genel hataları yakala.
+      debugPrint('Genel Kayıt Hatası: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('An unexpected error occurred: ${e.toString()}'),
+            content: Text('Beklenmedik bir hata oluştu: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -119,41 +152,43 @@ class AuthPage {
     }
   }
 
-  // Email/Password Sign-In(giriş)
+  /// E-posta ve şifre ile mevcut bir kullanıcının oturumunu açar.
   Future<void> signInWithEmailPassword(
     BuildContext context,
     String email,
     String password,
   ) async {
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      debugPrint('User signed in with email: $email');
+      // E-posta ve şifre ile Firebase'de oturum aç.
+      final userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+      userId = userCredential.user?.uid; // userId'yi ata.
+      debugPrint('Kullanıcı e-posta ile oturum açtı: $email');
 
-      // ✅ Yönlendirme
+      // Başarılı oturum açmadan sonra '/home' sayfasına yönlendir.
       if (context.mounted) {
         Navigator.pushReplacementNamed(context, '/home');
       }
     } on FirebaseAuthException catch (e) {
-      debugPrint('Firebase Auth Error (Sign In): ${e.code} - ${e.message}');
+      // Firebase kimlik doğrulama hatalarını yakala.
+      debugPrint(
+        'Firebase Kimlik Doğrulama Hatası (Giriş): ${e.code} - ${e.message}',
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Sign-in error: ${e.message ?? "An error occurred."}',
-            ),
+            content: Text('Giriş hatası: ${e.message ?? "Bir hata oluştu."}'),
             backgroundColor: Colors.red,
           ),
         );
       }
     } catch (e) {
-      debugPrint('General Sign-In Error: $e');
+      // Diğer genel hataları yakala.
+      debugPrint('Genel Giriş Hatası: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('An unexpected error occurred: ${e.toString()}'),
+            content: Text('Beklenmedik bir hata oluştu: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -161,14 +196,15 @@ class AuthPage {
     }
   }
 
-  // Sign Out
-  // Future<void> signOut() async {
-  //   try {
-  //     await GoogleSignIn().signOut();
-  //     await FirebaseAuth.instance.signOut();
-  //     debugPrint('User successfully signed out.');
-  //   } catch (e) {
-  //     debugPrint('Sign-out error: $e');
-  //   }
-  // }
+  /// Mevcut kullanıcının oturumunu kapatır (hem Google hem Firebase).
+  Future<void> signOut() async {
+    try {
+      await _googleSignIn.signOut(); // _googleSignIn artık tanımlı
+      await FirebaseAuth.instance.signOut();
+      userId = null;
+      debugPrint('Kullanıcı başarıyla oturumu kapattı.');
+    } catch (e) {
+      debugPrint('Oturum kapatma hatası: $e');
+    }
+  }
 }

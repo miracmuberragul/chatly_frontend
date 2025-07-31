@@ -22,11 +22,11 @@ class ChatScreen extends StatefulWidget {
   final String profilePhotoUrl;
 
   const ChatScreen({
-    super.key,
     required this.otherUserId,
     required this.username,
     required this.isOnline,
     required this.profilePhotoUrl,
+    super.key,
   });
 
   @override
@@ -112,6 +112,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _scrollController.dispose();
     _socketSubscription?.cancel();
+    _controller.dispose();
     _typingTimer?.cancel();
     _messagesSubscription?.cancel();
     _controller.dispose();
@@ -157,7 +158,7 @@ class _ChatScreenState extends State<ChatScreen> {
       senderId: _currentUserId,
       otherUserId: widget.otherUserId,
       text: text,
-      type: 'text', // Specify message type as text
+      type: 'text',
     );
 
     _controller.clear();

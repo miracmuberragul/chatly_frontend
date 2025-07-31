@@ -1,15 +1,16 @@
-import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:image_picker/image_picker.dart';
-// Firebase Storage disabled for base64 approach
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import '../theme/theme_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/user_model.dart';
 import '../services/user_service.dart';
-import '../models/user_model.dart'; // Eğer tip olarak kullanmıyorsan kaldırabilirsin.
+import '../theme/theme_controller.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -21,8 +22,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _oldPasswordController =
-      TextEditingController(); // Yeni: Eski parola için controller
+  final TextEditingController _oldPasswordController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
@@ -58,10 +58,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       source: ImageSource.gallery,
     );
     if (pickedImage != null) {
+      if (!mounted) return;
       setState(() {
         _imageFile = File(pickedImage.path);
       });
-      // Otomatik olarak kaydet
       await _uploadProfilePhoto();
     }
   }
@@ -70,7 +70,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_imageFile == null || currentUser == null) return;
 
     try {
-      // Convert selected image to base64 and store directly in Firestore
       final bytes = await _imageFile!.readAsBytes();
       final ext = _imageFile!.path.contains('.')
           ? _imageFile!.path.split('.').last
@@ -79,26 +78,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final dataUri = 'data:image/$ext;base64,$base64Str';
 
       if (dataUri.length > 900000) {
-        _showSnackBar('Profile photo too large. Please choose a smaller one.');
+        _showSnackBar('profilePhotoTooLarge'.tr, isError: true);
         return;
       }
 
       await _userService.updateUserProfilePhoto(currentUser!.uid, dataUri);
-      // Update local state
 
       if (!mounted) return;
       setState(() {
         _profilePhotoUrl = dataUri;
       });
-      _showSnackBar('Profile photo updated successfully!');
+      _showSnackBar('profilePhotoUpdatedSuccessfully'.tr);
     } catch (e) {
-      _showSnackBar('Error occurred while uploading profile photo: $e');
+      _showSnackBar('${'errorUploadingProfilePhoto'.tr}: $e', isError: true);
     }
   }
 
   Future<void> _saveSettings() async {
     if (currentUser == null) {
-      _showSnackBar('No authenticated user found.');
+      _showSnackBar('noAuthenticatedUserFound'.tr, isError: true);
       return;
     }
 
@@ -108,84 +106,115 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final newUsername = _usernameController.text.trim();
       if (newUsername.isNotEmpty && newUsername != (existing?.username ?? '')) {
         await _userService.updateUsername(currentUser!.uid, newUsername);
-        _showSnackBar('Username updated successfully!');
+        _showSnackBar('usernameUpdatedSuccessfully'.tr);
       }
     } catch (e) {
-      _showSnackBar('Error updating username: $e');
+      _showSnackBar('${'errorUpdatingUsername'.tr}: $e', isError: true);
     }
 
     // Parola güncelleme
-    // Eğer parola alanlarından herhangi biri doluysa işlem yap
     if (_oldPasswordController.text.isNotEmpty ||
         _passwordController.text.isNotEmpty ||
         _confirmPasswordController.text.isNotEmpty) {
       if (_oldPasswordController.text.isEmpty) {
-        _showSnackBar('Please enter your current password to change it.');
+        _showSnackBar('enterCurrentPasswordToChange'.tr, isError: true);
         return;
       }
       if (_passwordController.text.isEmpty ||
           _confirmPasswordController.text.isEmpty) {
-        _showSnackBar('Please enter and confirm your new password.');
+        _showSnackBar('enterAndConfirmNewPassword'.tr, isError: true);
         return;
       }
       if (_passwordController.text == _confirmPasswordController.text) {
         try {
-          // UserService üzerinden parola değiştirme metodunu çağır
           await _userService.changePassword(
             oldPassword: _oldPasswordController.text,
             newPassword: _passwordController.text,
-            email: currentUser!.email!, // Mevcut kullanıcının e-postası
+            email: currentUser!.email!,
           );
-
-          _showSnackBar('Password updated successfully!');
-          _oldPasswordController.clear(); // Eski parola alanını temizle
+          _showSnackBar('passwordUpdatedSuccessfully'.tr);
+          _oldPasswordController.clear();
           _passwordController.clear();
           _confirmPasswordController.clear();
         } on FirebaseAuthException catch (e) {
-          // UserService'den gelen FirebaseAuthException hatalarını burada yakala
-          // e.message doğrudan kullanıcıya gösterilebilir, çünkü UserService'de özelleştirildi
-          _showSnackBar(
-            e.message ?? 'An error occurred while updating the password.',
-          );
+          _showSnackBar(e.message ?? 'errorUpdatingPassword'.tr, isError: true);
         } catch (e) {
-          // Diğer genel hataları yakala (örneğin UserService'den fırlatılan Exception)
           _showSnackBar(
-            'An unknown error occurred while updating the password: ${e.toString()}',
+            '${'unknownErrorUpdatingPassword'.tr}: $e',
+            isError: true,
           );
         }
       } else {
-        _showSnackBar('New passwords do not match.');
+        _showSnackBar('newPasswordsDoNotMatch'.tr, isError: true);
       }
     }
 
-    // Fotoğraf güncelleme
     if (_imageFile != null) {
       await _uploadProfilePhoto();
     }
   }
 
-  void _showSnackBar(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!Get.isSnackbarOpen) {
+      Get.snackbar(
+        isError ? 'error'.tr : 'info'.tr,
+        message,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: isError ? Colors.red.shade600 : Colors.green.shade600,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+        borderRadius: 8,
+      );
+    }
+  }
+
+  ImageProvider _imageProvider() {
+    if (_imageFile != null) {
+      return FileImage(_imageFile!);
+    }
+    if (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty) {
+      if (_profilePhotoUrl!.startsWith('data:image')) {
+        try {
+          final bytes = base64Decode(_profilePhotoUrl!.split(',').last);
+          return MemoryImage(bytes);
+        } catch (e) {
+          debugPrint("Base64 Decode Error: $e");
+          return const AssetImage('assets/images/logo.png');
+        }
+      } else if (_profilePhotoUrl!.startsWith('http')) {
+        return NetworkImage(_profilePhotoUrl!);
+      }
+    }
+    return const AssetImage('assets/images/logo.png');
+  }
+
+  Widget _buildTextField({
+    required String label,
+    required TextEditingController controller,
+    bool obscureText = false,
+    bool enabled = true,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      enabled: enabled,
+      decoration: InputDecoration(labelText: label),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final themeController = context.watch<ThemeController>();
     final cs = Theme.of(context).colorScheme;
-
-    // SegmentedButton seçimi: 'system' varsa, UI'da varsayılanı 'light' göster.
-    final ThemeMode selectedMode = themeController.mode == ThemeMode.dark
+    final selectedMode = themeController.mode == ThemeMode.dark
         ? ThemeMode.dark
         : ThemeMode.light;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Settings',
-          style: TextStyle(fontWeight: FontWeight.w500, fontSize: 24),
+        title: Text(
+          'settings'.tr,
+          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 24),
         ),
         elevation: 0,
       ),
@@ -216,7 +245,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ],
                           ),
                           child: Text(
-                            'Edit',
+                            'edit'.tr,
                             style: TextStyle(
                               color: cs.primary,
                               fontWeight: FontWeight.w600,
@@ -228,75 +257,92 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'language'.tr,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () async {
+                      final currentLang = Get.locale?.languageCode ?? 'en';
+                      final newLocale = currentLang == 'en'
+                          ? const Locale('tr', 'TR')
+                          : const Locale('en', 'US');
 
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setString('locale', newLocale.languageCode);
+
+                      Get.updateLocale(newLocale);
+
+                      setState(() {});
+                    },
+                    child: Text(Get.locale?.languageCode.toUpperCase() ?? 'EN'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
               _buildTextField(
-                label: 'Username',
+                label: 'username'.tr,
                 controller: _usernameController,
               ),
               const SizedBox(height: 16),
-
               _buildTextField(
-                label: 'Email',
+                label: 'email'.tr,
                 controller: _emailController,
                 enabled: false,
               ),
               const SizedBox(height: 16),
-
-              // Yeni: Eski parola giriş alanı
               _buildTextField(
-                label: 'Current Password',
+                label: 'currentPassword'.tr,
                 controller: _oldPasswordController,
                 obscureText: true,
               ),
               const SizedBox(height: 16),
-
               _buildTextField(
-                label: 'New Password',
+                label: 'newPassword'.tr,
                 controller: _passwordController,
                 obscureText: true,
               ),
               const SizedBox(height: 16),
-
               _buildTextField(
-                label: 'Confirm New Password', // Etiket güncellendi
+                label: 'confirmNewPassword'.tr,
                 controller: _confirmPasswordController,
                 obscureText: true,
               ),
-
-              // ---------- Tema Seçimi (yalnızca Aydınlık/Karanlık) ----------
               const SizedBox(height: 24),
-              const Text(
-                'Theme',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              Text(
+                'theme'.tr,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 8),
-
               SegmentedButton<ThemeMode>(
-                segments: const [
+                segments: [
                   ButtonSegment<ThemeMode>(
                     value: ThemeMode.light,
-                    label: Text('Light'),
-                    icon: Icon(Icons.light_mode),
+                    label: Text('light'.tr),
+                    icon: const Icon(Icons.light_mode),
                   ),
                   ButtonSegment<ThemeMode>(
                     value: ThemeMode.dark,
-                    label: Text('Dark'),
-                    icon: Icon(Icons.dark_mode),
+                    label: Text('dark'.tr),
+                    icon: const Icon(Icons.dark_mode),
                   ),
                 ],
                 selected: {selectedMode},
                 onSelectionChanged: (sel) {
-                  final mode = sel.first;
-                  themeController.setMode(mode);
+                  themeController.setMode(sel.first);
                 },
-                showSelectedIcon: true, // seçili segmente ✓ ekler
+                showSelectedIcon: true,
                 multiSelectionEnabled: false,
                 emptySelectionAllowed: false,
               ),
-
-              // ---------- Tema Seçimi Son ----------
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _saveSettings,
@@ -304,56 +350,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   backgroundColor: const Color(0xFF2F4156),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text(
-                  'Save Settings',
-                  style: TextStyle(color: Colors.white),
+                child: Text(
+                  'saveSettings'.tr,
+                  style: const TextStyle(color: Colors.white),
                 ),
               ),
               TextButton.icon(
                 onPressed: () async {
                   await _userService.signOut();
                   if (!mounted) return;
-                  Navigator.pushReplacementNamed(context, '/auth');
+                  Get.offAllNamed('/auth');
                 },
                 icon: const Icon(Icons.logout),
-                label: const Text(
-                  'Log out',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                label: Text(
+                  'logOut'.tr,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  ImageProvider _imageProvider() {
-    if (_imageFile != null) {
-      return FileImage(_imageFile!);
-    }
-    if (_profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty) {
-      if (_profilePhotoUrl!.startsWith('data:image')) {
-        final bytes = base64Decode(_profilePhotoUrl!.split(',').last);
-        return MemoryImage(bytes);
-      } else if (_profilePhotoUrl!.startsWith('http')) {
-        return NetworkImage(_profilePhotoUrl!);
-      }
-    }
-    return const AssetImage('assets/images/logo.png');
-  }
-
-  Widget _buildTextField({
-    required String label,
-    required TextEditingController controller,
-    bool obscureText = false,
-    bool enabled = true,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      enabled: enabled,
-      decoration: InputDecoration(labelText: label),
     );
   }
 }

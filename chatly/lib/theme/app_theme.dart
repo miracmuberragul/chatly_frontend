@@ -79,10 +79,12 @@ class AppTheme {
         style: TextButton.styleFrom(foregroundColor: scheme.primary),
       ),
 
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: scheme.background,
-        selectedItemColor: scheme.primary,
-        unselectedItemColor: scheme.onSurfaceVariant,
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: brandBackgroundLight,
+        selectedItemColor: Color(0xFFC8D9E6),
+        unselectedItemColor: Color(0xFF7A7A7A),
+        selectedIconTheme: IconThemeData(size: 24),
+        unselectedIconTheme: IconThemeData(size: 22),
         type: BottomNavigationBarType.fixed,
       ),
 

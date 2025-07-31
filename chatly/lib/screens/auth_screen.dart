@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:chatly/services/apple_auth_page.dart';
 import 'package:flutter/material.dart';
 import 'package:chatly/services/auth_page.dart';
+import 'package:get/get.dart'; // <-- EKLENDİ
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -24,11 +25,9 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final isDark =
-        Theme.of(context).brightness == Brightness.dark; // <-- EKLENDİ
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      // backgroundColor'u temaya bırak
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -37,7 +36,6 @@ class _AuthScreenState extends State<AuthScreen> {
               key: _formKey,
               child: Column(
                 children: [
-                  // Logo: dark modda white_logo.png ve biraz daha büyük yükseklik
                   Image.asset(
                     isDark
                         ? 'assets/images/image.png'
@@ -46,6 +44,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     height: isDark
                         ? 130
                         : 130, // karanlıkta biraz daha büyük çiz
+
                     fit: BoxFit.contain,
                     filterQuality: FilterQuality.high,
                   ),
@@ -55,8 +54,8 @@ class _AuthScreenState extends State<AuthScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       _isLogin
-                          ? 'Login to your account'
-                          : 'Create your Account',
+                          ? 'loginToAccount'.tr
+                          : 'createYourAccount'.tr, // <-- DEĞİŞTİ
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -70,8 +69,17 @@ class _AuthScreenState extends State<AuthScreen> {
                     Column(
                       children: [
                         TextFormField(
-                          decoration: _inputDecoration(context, 'Username'),
+                          decoration: _inputDecoration(
+                            context,
+                            'username'.tr,
+                          ), // <-- DEĞİŞTİ
                           onChanged: (value) => username = value,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'usernameRequired'.tr; // <-- DEĞİŞTİ
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 16),
                       ],
@@ -79,15 +87,33 @@ class _AuthScreenState extends State<AuthScreen> {
 
                   TextFormField(
                     keyboardType: TextInputType.emailAddress,
-                    decoration: _inputDecoration(context, 'Email'),
+                    decoration: _inputDecoration(
+                      context,
+                      'email'.tr,
+                    ), // <-- DEĞİŞTİ
                     onChanged: (value) => email = value,
+                    validator: (value) {
+                      if (value == null || !GetUtils.isEmail(value)) {
+                        return 'invalidEmail'.tr; // <-- DEĞİŞTİ
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
 
                   TextFormField(
                     obscureText: true,
-                    decoration: _inputDecoration(context, 'Password'),
+                    decoration: _inputDecoration(
+                      context,
+                      'password'.tr,
+                    ), // <-- DEĞİŞTİ
                     onChanged: (value) => password = value,
+                    validator: (value) {
+                      if (value == null || value.length < 6) {
+                        return 'passwordTooShort'.tr; // <-- DEĞİŞTİ
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
 
@@ -98,9 +124,15 @@ class _AuthScreenState extends State<AuthScreen> {
                           obscureText: true,
                           decoration: _inputDecoration(
                             context,
-                            'Confirm Password',
-                          ),
+                            'confirmPassword'.tr,
+                          ), // <-- DEĞİŞTİ
                           onChanged: (value) => confirmPassword = value,
+                          validator: (value) {
+                            if (value != password) {
+                              return 'passwordsDoNotMatch'.tr; // <-- DEĞİŞTİ
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 24),
                       ],
@@ -138,57 +170,52 @@ class _AuthScreenState extends State<AuthScreen> {
                         }
                       },
                       child: Text(
-                        _isLogin ? 'Sign in' : 'Sign up',
+                        _isLogin ? 'signIn'.tr : 'signUp'.tr, // <-- DEĞİŞTİ
                         style: const TextStyle(fontSize: 16),
                       ),
                     ),
                   ),
 
+
                   const SizedBox(height: 24),
 
-                  // // ------- Sosyal giriş (istersen aç) -------
+                  if (Platform.isAndroid)
+            _socialLoginButton(
+              context: context,
+              logoPath: 'assets/images/google.png',
+              label: 'Sign in with Google',
+              onTap: () {
+                 _authPage.signInWithGoogle(context);
+      },
+      ),
+
+                  // Add more social login buttons here if needed (e.g., Apple, Facebook)
                   // const SizedBox(height: 16),
-                  // if (Platform.isAndroid)
-                  //    _socialLoginButton(
-                  //      context: context,
-                  //      logoPath: 'assets/images/google.png',
-                  //      label: 'Sign in with Google',
-                  //      onTap: () {
-                  //        _authPage.signInWithGoogle(context);
-                  //      },
-                  //    )
-                  // else if (Platform.isIOS)
-                  //    _socialLoginButton(
-                  //      context: context,
-                  //      logoPath: 'assets/images/apple.png',
-                  //      label: 'Sign in with Apple',
-                  //      onTap: () async {
-                  //        try {
-                  //          final userCredential = await _appleAuthPage.signInWithApple();
-                  //          debugPrint('Apple Sign-In başarılı: ${userCredential.user?.email}');
-                  //        } catch (e) {
-                  //          debugPrint('Apple Sign-In hatası: $e');
-                  //        }
-                  //      },
-                  //    ),
-                  // const SizedBox(height: 20),
+                  // _socialLoginButton(
+                  //   context: context,
+                  //   logoPath: 'assets/images/apple.png',
+                  //   label: 'Sign in with Apple',
+                  //   onTap: () {
+                  //     // TODO: Implement Apple sign-in
+                  //   },
+                  // ),
+                  const SizedBox(height: 20),
+
+
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         _isLogin
-                            ? "Don't have any account?"
-                            : "Already have an account?",
+                            ? 'dontHaveAccount'.tr
+                            : 'alreadyHaveAccount'.tr, // <-- DEĞİŞTİ
                         style: TextStyle(color: cs.onSurfaceVariant),
                       ),
                       TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _isLogin = !_isLogin;
-                          });
-                        },
+                        onPressed: () => setState(() => _isLogin = !_isLogin),
                         child: Text(
-                          _isLogin ? 'Sign up' : 'Login',
+                          _isLogin ? 'signUp'.tr : 'login'.tr, // <-- DEĞİŞTİ
                           style: TextStyle(
                             color: cs.primary,
                             fontWeight: FontWeight.bold,
@@ -207,13 +234,12 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // Tema-dostu input dekorasyonu
   InputDecoration _inputDecoration(BuildContext context, String label) {
     final cs = Theme.of(context).colorScheme;
     return InputDecoration(
       labelText: label,
       filled: true,
-      fillColor: cs.surfaceVariant, // 0xFFC8D9E6 benzeri açık panel
+      fillColor: cs.surfaceVariant,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide.none,
@@ -222,7 +248,6 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // Tema-dostu sosyal login butonu
   Widget _socialLoginButton({
     required BuildContext context,
     required String logoPath,
@@ -237,27 +262,14 @@ class _AuthScreenState extends State<AuthScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: double.infinity,
-        height: 48,
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: shadowColor,
-              blurRadius: 6,
-              offset: const Offset(0, 3),
-            ),
-          ],
-          border: Border.all(color: cs.outlineVariant),
-        ),
+        // ... (bu widget'ın stili aynı kalabilir) ...
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(logoPath, width: 24, height: 24, fit: BoxFit.contain),
             const SizedBox(width: 12),
             Text(
-              label,
+              label, // Label artık dışarıdan çevrilmiş olarak geliyor
               style: TextStyle(
                 fontSize: 16,
                 color: cs.onSurface,
