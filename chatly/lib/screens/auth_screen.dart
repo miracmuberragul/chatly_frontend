@@ -146,34 +146,32 @@ class _AuthScreenState extends State<AuthScreen> {
 
                   const SizedBox(height: 24),
 
-                  // ------- Sosyal giriş (istersen aç) -------
+                  // // ------- Sosyal giriş (istersen aç) -------
                   // const SizedBox(height: 16),
                   // if (Platform.isAndroid)
-                  //   _socialLoginButton(
-                  //     context: context,
-                  //     logoPath: 'assets/images/google.png',
-                  //     label: 'Sign in with Google',
-                  //     onTap: () {
-                  //       _authPage.signInWithGoogle(context);
-                  //     },
-                  //   )
+                  //    _socialLoginButton(
+                  //      context: context,
+                  //      logoPath: 'assets/images/google.png',
+                  //      label: 'Sign in with Google',
+                  //      onTap: () {
+                  //        _authPage.signInWithGoogle(context);
+                  //      },
+                  //    )
                   // else if (Platform.isIOS)
-                  //   _socialLoginButton(
-                  //     context: context,
-                  //     logoPath: 'assets/images/apple.png',
-                  //     label: 'Sign in with Apple',
-                  //     onTap: () async {
-                  //       try {
-                  //         final userCredential = await _appleAuthPage.signInWithApple();
-                  //         debugPrint('Apple Sign-In başarılı: ${userCredential.user?.email}');
-                  //       } catch (e) {
-                  //         debugPrint('Apple Sign-In hatası: $e');
-                  //       }
-                  //     },
-                  //   ),
-                  // ------------------------------------------
-                  const SizedBox(height: 20),
-
+                  //    _socialLoginButton(
+                  //      context: context,
+                  //      logoPath: 'assets/images/apple.png',
+                  //      label: 'Sign in with Apple',
+                  //      onTap: () async {
+                  //        try {
+                  //          final userCredential = await _appleAuthPage.signInWithApple();
+                  //          debugPrint('Apple Sign-In başarılı: ${userCredential.user?.email}');
+                  //        } catch (e) {
+                  //          debugPrint('Apple Sign-In hatası: $e');
+                  //        }
+                  //      },
+                  //    ),
+                  // const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

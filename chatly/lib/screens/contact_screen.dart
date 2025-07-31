@@ -39,10 +39,8 @@ class _ContactScreenState extends State<ContactScreen> {
       final contacts = snapshot.docs
           .map((doc) => UserModel.fromJson(doc.data()))
           .where(
-            (user) =>
-                user.uid != currentUserUid &&
-                !(friendshipStatus[user.uid] == 'friends'),
-          ) // Buraya dikkat
+            (user) => user.uid != currentUserUid,
+          ) // Sadece kendimizi filtrele
           .toList();
 
       // Kullanıcıları hemen göster (butonlar Add olarak)
@@ -108,46 +106,6 @@ class _ContactScreenState extends State<ContactScreen> {
     }
   }
 
-  // 🔹 Arkadaşlık durumunu kontrol et
-  Future<String> _checkFriendshipStatus(
-    String currentUserId,
-    String targetUserId,
-  ) async {
-    try {
-      // Friendships koleksiyonundan kontrol et
-      final friendshipsQuery = await FirebaseFirestore.instance
-          .collection('friendships')
-          .where('memberIds', arrayContains: currentUserId)
-          .get();
-
-      for (var doc in friendshipsQuery.docs) {
-        final data = doc.data();
-        List<dynamic> memberIds = data['memberIds'];
-        String status = data['status'];
-        String requesterId = data['requesterId'];
-        String receiverId = data['receiverId'];
-
-        // Bu friendship bu iki kullanıcı arasında mı?
-        if (memberIds.contains(targetUserId)) {
-          if (status == 'accepted') {
-            return 'friends'; // Zaten arkadaş
-          } else if (status == 'pending') {
-            if (requesterId == currentUserId) {
-              return 'sent'; // Ben göndermiş, karşı taraf henüz kabul etmemiş
-            } else {
-              return 'received'; // Karşı taraf göndermiş, ben henüz kabul etmemiş
-            }
-          }
-        }
-      }
-
-      return 'none'; // Hiçbir ilişki yok
-    } catch (e) {
-      print('Error checking friendship status: $e');
-      return 'none';
-    }
-  }
-
   void _filterContacts(String input) {
     setState(() {
       query = input;
@@ -169,9 +127,10 @@ class _ContactScreenState extends State<ContactScreen> {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) return;
 
-      await friendshipService.cancelFriendRequest(
-        requesterId: currentUser.uid,
-        receiverId: user.uid,
+      // FriendshipService'de cancelFriendRequest metodu yoksa, declineFriendRequest kullan
+      await friendshipService.declineFriendRequest(
+        currentUser.uid, // requesterId (ben göndermiştim)
+        user.uid, // receiverId
       );
 
       setState(() {
@@ -199,18 +158,6 @@ class _ContactScreenState extends State<ContactScreen> {
     final status = friendshipStatus[user.uid] ?? 'none';
 
     switch (status) {
-      case 'friends':
-        return ElevatedButton(
-          onPressed: null, // Disabled
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          child: const Text('Friends', style: TextStyle(color: Colors.white)),
-        );
-
       case 'sent':
         return ElevatedButton(
           onPressed: () => _cancelFriendRequest(user),
@@ -224,15 +171,39 @@ class _ContactScreenState extends State<ContactScreen> {
         );
 
       case 'received':
+        // 🔹 Gelen isteklerde kullanıcıyı direkt yönlendir
         return ElevatedButton(
-          onPressed: () => _acceptFriendRequest(user),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const FriendRequestScreen(),
+              ),
+            );
+          },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.blue,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
           ),
-          child: const Text('Accept', style: TextStyle(color: Colors.white)),
+          child: const Text(
+            'View Request',
+            style: TextStyle(color: Colors.white),
+          ),
+        );
+
+      case 'friends':
+        // Bu durum artık UI'da görünmeyecek çünkü filtreliyoruz
+        return ElevatedButton(
+          onPressed: null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: const Text('Friends', style: TextStyle(color: Colors.white)),
         );
 
       case 'none':
@@ -282,39 +253,6 @@ class _ContactScreenState extends State<ContactScreen> {
     }
   }
 
-  // 🔹 Arkadaşlık isteğini kabul et
-  void _acceptFriendRequest(UserModel user) async {
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) return;
-
-      // FriendshipService'i kullanarak isteği kabul et
-      await friendshipService.acceptFriendRequest(
-        user.uid, // requesterId
-        currentUser.uid, // receiverId
-      );
-
-      // UI'de güncelle
-      setState(() {
-        friendshipStatus[user.uid] = 'friends';
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('You are now friends with ${user.username}'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to accept request: $e'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -335,7 +273,7 @@ class _ContactScreenState extends State<ContactScreen> {
                   Text(
                     'Add new contact',
                     style: TextStyle(
-                      color: cs.primary, // 0xFF2F4156
+                      color: cs.primary,
                       fontSize: 30,
                       fontWeight: FontWeight.bold,
                     ),
@@ -354,7 +292,7 @@ class _ContactScreenState extends State<ContactScreen> {
                   hintText: 'Search contact',
                   prefixIcon: const Icon(Icons.search),
                   filled: true,
-                  fillColor: cs.surfaceVariant, // 0xFFC8D9E6 benzeri
+                  fillColor: cs.surfaceVariant,
                   border: OutlineInputBorder(
                     borderSide: BorderSide(color: cs.primary),
                     borderRadius: BorderRadius.circular(16),
@@ -415,13 +353,22 @@ class _ContactScreenState extends State<ContactScreen> {
                           )
                           .toList();
 
+                      if (visibleContacts.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            'All users are already your friends! 🎉',
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
+                        );
+                      }
+
                       return ListView.builder(
                         itemCount: visibleContacts.length,
                         itemBuilder: (context, index) {
                           final UserModel user = visibleContacts[index];
                           return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: const Color(0xFF2F4156),
+                            leading: const CircleAvatar(
+                              backgroundColor: Color(0xFF2F4156),
                               child: Icon(Icons.person, color: Colors.white),
                             ),
                             title: Text(user.username!),
