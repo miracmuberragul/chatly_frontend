@@ -273,7 +273,6 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          // *** SORUNUN ÇÖZÜLDÜĞÜ YER: Expanded widget'ı eklendi. ***
           Expanded(
             child: StreamBuilder<List<MessageModel>>(
               stream: _messageService.getMessagesStream(_chatId),
@@ -318,13 +317,11 @@ class _ChatScreenState extends State<ChatScreen> {
                       if (message.imageUrl!.startsWith('data:image')) {
                         imageWidget = Image.memory(
                           base64Decode(message.imageUrl!.split(',').last),
-                          width: 180,
                           fit: BoxFit.cover,
                         );
                       } else {
                         imageWidget = Image.network(
                           message.imageUrl!,
-                          width: 180,
                           fit: BoxFit.cover,
                         );
                       }
@@ -332,7 +329,11 @@ class _ChatScreenState extends State<ChatScreen> {
                         onTap: () => Get.to(
                           () => FullImageView(imageUrl: message.imageUrl!),
                         ),
-                        child: imageWidget,
+                        child: ClipRRect(
+                          // Resimlerin köşelerini yuvarlatmak daha şık durur
+                          borderRadius: BorderRadius.circular(12),
+                          child: imageWidget,
+                        ),
                       );
                     } else {
                       messageContent = Text(
@@ -350,31 +351,28 @@ class _ChatScreenState extends State<ChatScreen> {
                           : Alignment.centerLeft,
                       child: Container(
                         constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.7,
+                          maxWidth: MediaQuery.of(context).size.width * 0.75,
                         ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
-                          vertical: 10,
+                          vertical: 8,
                         ),
-                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        margin: const EdgeInsets.symmetric(vertical: 4),
                         decoration: BoxDecoration(
                           color: isMe ? bubbleMe : bubbleOther,
                           borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(isMe ? 12 : 0),
-                            topRight: Radius.circular(isMe ? 0 : 12),
-                            bottomLeft: const Radius.circular(12),
-                            bottomRight: const Radius.circular(12),
+                            topLeft: Radius.circular(isMe ? 16 : 4),
+                            topRight: Radius.circular(isMe ? 4 : 16),
+                            bottomLeft: const Radius.circular(16),
+                            bottomRight: const Radius.circular(16),
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          mainAxisSize: MainAxisSize.min,
+                        child: Wrap(
+                          alignment: WrapAlignment.end,
+                          crossAxisAlignment: WrapCrossAlignment.end,
                           children: [
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: messageContent,
-                            ),
-                            const SizedBox(height: 4),
+                            messageContent,
+                            const SizedBox(width: 8),
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -411,7 +409,6 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
           ),
-          // Alt giriş alanı
           Container(
             color: cs.surface,
             child: SafeArea(
