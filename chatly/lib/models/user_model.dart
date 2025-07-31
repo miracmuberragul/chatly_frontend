@@ -22,7 +22,7 @@ class UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       uid: json['uid'] as String,
-      username: json['username'] as String,
+      username: json['username'] != null ? json['username'] as String : '',
       email: json['email'] as String,
       profilePhotoUrl: json['profilePhotoUrl'] as String?,
       isOnline: json['isOnline'] as bool? ?? false,

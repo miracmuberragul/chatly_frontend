@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'package:chatly/models/user_model.dart';
 import 'package:chatly/screens/friend_request_screen.dart';
 import 'package:chatly/services/friendship_service.dart';
@@ -50,6 +51,8 @@ class _ContactScreenState extends State<ContactScreen> {
             .get(),
       ]);
 
+      log(results.toString());
+
       final usersSnapshot = results[0] as QuerySnapshot;
       final friendshipsSnapshot = results[1] as QuerySnapshot;
 
@@ -97,8 +100,8 @@ class _ContactScreenState extends State<ContactScreen> {
           _isLoading = false; // Yükleme tamamlandı
         });
       }
-    } catch (e) {
-      print('Error loading and filtering contacts: $e');
+    } catch (e, stackTrace) {
+      print('Error loading and filtering contacts: $e $stackTrace');
       if (mounted) setState(() => _isLoading = false);
     }
   }
