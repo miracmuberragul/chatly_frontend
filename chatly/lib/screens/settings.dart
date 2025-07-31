@@ -11,6 +11,10 @@ import '../theme/theme_controller.dart';
 import '../services/user_service.dart';
 import '../models/user_model.dart'; // Eğer tip olarak kullanmıyorsan kaldırabilirsin.
 
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:chatly/l10n/language_controller.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -19,6 +23,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  bool isEnglish = true; // Varsayılan dil
+
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _oldPasswordController =
@@ -229,6 +235,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
 
+              const SizedBox(height: 16),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Language: ',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        isEnglish = !isEnglish;
+                        final newLocale = isEnglish
+                            ? const Locale('en')
+                            : const Locale('tr');
+                        Provider.of<LanguageController>(
+                          context,
+                          listen: false,
+                        ).setLocale(newLocale);
+                      });
+                    },
+                    child: Text(isEnglish ? 'EN' : 'TR'),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
 
               _buildTextField(
