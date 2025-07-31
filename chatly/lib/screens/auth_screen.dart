@@ -151,7 +151,7 @@ class _AuthScreenState extends State<AuthScreen> {
               logoPath: 'assets/images/google.png',
               label: 'Sign in with Google',
               onTap: () {
-                // _authPage.signInWithGoogle(context);
+                 _authPage.signInWithGoogle(context);
       },
       ),
 
