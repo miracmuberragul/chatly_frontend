@@ -6,66 +6,63 @@ import 'package:google_sign_in/google_sign_in.dart';
 class AuthPage {
   late final String userId;
 
-  // Future<void> signInWithGoogle(BuildContext context) async {
-  //   try {
-  //     final GoogleSignInAccount? googleUser = await GoogleSignIn()
-  //         .signIn(); //google seçtik
-  //     if (googleUser == null) {
-  //       // User canceled the sign-in, no action needed
-  //       return;
-  //     }
+  //    Future<void> signInWithGoogle(BuildContext context) async {
+  //     try {
+  //       final googleSignIn = GoogleSignIn();
+  //       final googleUser = await googleSignIn.signIn();
 
-  //     final googleAuth = await googleUser.authentication;
-  //     //kimlik bilgileri alınıyor ve firebasele kimlik doğrulaması yapılıyor
-  //     final credential = GoogleAuthProvider.credential(
-  //       accessToken: googleAuth.accessToken,
-  //       idToken: googleAuth.idToken,
-  //     );
-
-  //     final userCredential = await FirebaseAuth.instance.signInWithCredential(
-  //       credential,
-  //     );
-  //     final user = userCredential.user;
-
-  //     if (user != null) {
-  //       final userDoc = FirebaseFirestore.instance
-  //           .collection('users')
-  //           .doc(user.uid);
-  //       final snapshot = await userDoc.get();
-
-  //       // Add user to Firestore if not already saved
-  //       if (!snapshot.exists) {
-  //         await userDoc.set({
-  //           'uid': user.uid,
-  //           'name': user.displayName,
-  //           'email': user.email,
-  //           'createdAt': FieldValue.serverTimestamp(),
-  //         });
-  //         debugPrint('New user saved to Firestore: ${user.email}');
-  //       } else {
-  //         debugPrint('User already exists in Firestore: ${user.email}');
+  //       if (googleUser == null) {
+  //         debugPrint("Google Sign-In cancelled by user.");
+  //         return;
   //       }
-  //     }
-  //   } on FirebaseAuthException catch (e) {
-  //     debugPrint('Firebase Auth Error: ${e.code} - ${e.message}');
-  //     if (context.mounted) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(
-  //           content: Text(
-  //             'Sign-in error: ${e.message ?? "An error occurred."}',
-  //           ),
-  //           backgroundColor: Colors.red,
-  //         ),
+
+  //       final googleAuth = await googleUser.authentication;
+
+  //       final credential = GoogleAuthProvider.credential(
+  //         accessToken: googleAuth.accessToken,
+  //         idToken: googleAuth.idToken,
   //       );
+
+  //       final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+  //       final user = userCredential.user;
+
+  //       if (user != null) {
+  //         userId = user.uid;
+
+  //         final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+  //         final snapshot = await userDoc.get();
+
+  //         if (!snapshot.exists) {
+  //           await userDoc.set({
+  //             'uid': user.uid,
+  //             'email': user.email,
+  //             'name': user.displayName ?? '',
+  //             'photoUrl': user.photoURL ?? '',
+  //             'createdAt': FieldValue.serverTimestamp(),
+  //           });
+
+  //           debugPrint('New user added to Firestore: ${user.email}');
+  //         } else {
+  //           debugPrint('User already exists in Firestore: ${user.email}');
+  //         }
+
+  //         if (context.mounted) {
+  //           Navigator.pushReplacementNamed(context, '/home');
+  //         }
+  //       }
+  //     } on FirebaseAuthException catch (e) {
+  //       debugPrint("FirebaseAuthException: ${e.code} - ${e.message}");
+  //       _showErrorSnackbar(context, "Firebase Auth error: ${e.message}");
+  //     } catch (e) {
+  //       debugPrint("Unknown Google Sign-In error: $e");
+  //       _showErrorSnackbar(context, "Beklenmeyen bir hata oluştu.");
   //     }
-  //   } catch (e) {
-  //     debugPrint('Google Sign-In General Error: $e');
+  //   }
+
+  //   void _showErrorSnackbar(BuildContext context, String message) {
   //     if (context.mounted) {
   //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(
-  //           content: Text('An unexpected error occurred: ${e.toString()}'),
-  //           backgroundColor: Colors.red,
-  //         ),
+  //         SnackBar(content: Text(message), backgroundColor: Colors.red),
   //       );
   //     }
   //   }
