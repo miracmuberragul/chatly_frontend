@@ -1,12 +1,11 @@
 import 'dart:convert';
-
 import 'package:chatly/models/user_model.dart';
 import 'package:chatly/screens/friend_request_screen.dart';
 import 'package:chatly/services/friendship_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart'; // <-- EKLENDİ
+import 'package:get/get.dart';
 
 class ContactScreen extends StatefulWidget {
   const ContactScreen({super.key});
@@ -21,70 +20,90 @@ class _ContactScreenState extends State<ContactScreen> {
   List<UserModel> filteredContacts = [];
   Map<String, String> friendshipStatus = {};
   final friendshipService = FriendshipService();
+  bool _isLoading = true; // <-- YÜKLENME DURUMU İÇİN EKLENDİ
 
   @override
   void initState() {
     super.initState();
-    _loadContacts();
+    // Eskileri yerine yeni, birleşik fonksiyonu çağır
+    _loadAndFilterContacts();
   }
 
-  // --- BU BÖLÜMLERDE HİÇBİR MANTIK DEĞİŞİKLİĞİ YOKTUR ---
-  void _loadContacts() async {
+  // --- YENİ BİRLEŞİK YÜKLEME FONKSİYONU ---
+  // Bu fonksiyon, kullanıcıları ve arkadaşlık durumlarını aynı anda çeker,
+  // arkadaş olanları listeye hiç eklemeden filtreler ve setState'i sadece bir kez çağırır.
+  // Bu sayede listenin titremesi (flicker) sorunu ortadan kalkar.
+  Future<void> _loadAndFilterContacts() async {
     final currentUserUid = FirebaseAuth.instance.currentUser?.uid;
-    if (currentUserUid == null) return;
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .get();
-      final contacts = snapshot.docs
-          .map((doc) => UserModel.fromJson(doc.data()))
-          .where((user) => user.uid != currentUserUid)
-          .toList();
-      setState(() {
-        allContacts = contacts;
-        filteredContacts = List.from(allContacts);
-        friendshipStatus = {for (var user in contacts) user.uid: 'none'};
-      });
-      await _loadFriendshipStatuses(currentUserUid, contacts);
-    } catch (e) {
-      print('Error loading contacts: $e');
+    if (currentUserUid == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
     }
-  }
 
-  Future<void> _loadFriendshipStatuses(
-    String currentUserUid,
-    List<UserModel> contacts,
-  ) async {
     try {
-      final friendshipsQuery = await FirebaseFirestore.instance
-          .collection('friendships')
-          .where('memberIds', arrayContains: currentUserUid)
-          .get();
-      Map<String, String> statusMap = {
-        for (var user in contacts) user.uid: 'none',
-      };
-      for (var doc in friendshipsQuery.docs) {
-        final data = doc.data();
-        List<dynamic> memberIds = data['memberIds'];
-        String status = data['status'];
-        String requesterId = data['requesterId'];
-        for (String memberId in memberIds) {
-          if (memberId != currentUserUid && statusMap.containsKey(memberId)) {
-            if (status == 'accepted') {
-              statusMap[memberId] = 'friends';
-            } else if (status == 'pending') {
-              statusMap[memberId] = (requesterId == currentUserUid)
-                  ? 'sent'
-                  : 'received';
-            }
-          }
+      // Kullanıcıları ve arkadaşlıkları aynı anda çek (daha performanslı)
+      final results = await Future.wait([
+        FirebaseFirestore.instance.collection('users').get(),
+        FirebaseFirestore.instance
+            .collection('friendships')
+            .where('memberIds', arrayContains: currentUserUid)
+            .get(),
+      ]);
+
+      final usersSnapshot = results[0] as QuerySnapshot;
+      final friendshipsSnapshot = results[1] as QuerySnapshot;
+
+      // 1. Önce arkadaşlık durum haritasını oluştur
+      final statusMap = <String, String>{};
+      for (var doc in friendshipsSnapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final memberIds = List<String>.from(data['memberIds']);
+        final status = data['status'] as String;
+        final requesterId = data['requesterId'] as String;
+
+        // Diğer kullanıcının ID'sini bul
+        final otherUserId = memberIds.firstWhere((id) => id != currentUserUid);
+
+        if (status == 'accepted') {
+          statusMap[otherUserId] = 'friends';
+        } else if (status == 'pending') {
+          statusMap[otherUserId] = (requesterId == currentUserUid)
+              ? 'sent'
+              : 'received';
         }
       }
-      setState(() => friendshipStatus = statusMap);
+
+      // 2. Kullanıcı listesini oluştururken "friends" olanları doğrudan filtrele
+      final finalContacts = usersSnapshot.docs
+          .map((doc) => UserModel.fromJson(doc.data() as Map<String, dynamic>))
+          .where((user) {
+            // Mevcut kullanıcıyı ve zaten arkadaş olanları listeye hiç ekleme
+            final isCurrentUser = user.uid == currentUserUid;
+            final isFriend = statusMap[user.uid] == 'friends';
+            return !isCurrentUser && !isFriend;
+          })
+          .toList();
+
+      // 3. setState'i SADECE BİR KEZ çağır
+      if (mounted) {
+        setState(() {
+          // Durum haritasını her kullanıcı için ayarla (arkadaş olmayanlar 'none' olacak)
+          friendshipStatus = {
+            for (var user in finalContacts)
+              user.uid: statusMap[user.uid] ?? 'none',
+          };
+          allContacts = finalContacts;
+          filteredContacts = List.from(allContacts);
+          _isLoading = false; // Yükleme tamamlandı
+        });
+      }
     } catch (e) {
-      print('Error loading friendship statuses: $e');
+      print('Error loading and filtering contacts: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  // Artık _loadContacts ve _loadFriendshipStatuses fonksiyonlarına ihtiyaç yok.
 
   void _filterContacts(String input) {
     setState(() {
@@ -101,8 +120,9 @@ class _ContactScreenState extends State<ContactScreen> {
       }
     });
   }
-  // --- MANTIK DEĞİŞİKLİĞİ OLMAYAN BÖLÜM SONU ---
 
+  // _cancelFriendRequest, _sendFriendRequest, ve _buildActionButton fonksiyonları aynı kalabilir.
+  // ... (Bu fonksiyonlar değişmediği için kısaltıldı)
   void _cancelFriendRequest(UserModel user) async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -112,9 +132,7 @@ class _ContactScreenState extends State<ContactScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'requestCanceled'.trParams({'name': user.username!}),
-          ), // <-- DEĞİŞTİ
+          content: Text('requestCanceled'.trParams({'name': user.username!})),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -124,7 +142,7 @@ class _ContactScreenState extends State<ContactScreen> {
         SnackBar(
           content: Text(
             'cancelRequestFailed'.trParams({'error': e.toString()}),
-          ), // <-- DEĞİŞTİ
+          ),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -143,9 +161,7 @@ class _ContactScreenState extends State<ContactScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'requestSent'.trParams({'name': user.username!}),
-          ), // <-- DEĞİŞTİ
+          content: Text('requestSent'.trParams({'name': user.username!})),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -153,9 +169,7 @@ class _ContactScreenState extends State<ContactScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'sendRequestFailed'.trParams({'error': e.toString()}),
-          ), // <-- DEĞİŞTİ
+          content: Text('sendRequestFailed'.trParams({'error': e.toString()})),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -196,19 +210,9 @@ class _ContactScreenState extends State<ContactScreen> {
           ),
         );
       case 'friends':
-        return ElevatedButton(
-          onPressed: null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          child: Text(
-            'friends'.tr,
-            style: const TextStyle(color: Colors.white),
-          ),
-        );
+        // Bu durum artık listede görünmeyeceği için teorik olarak gereksiz,
+        // ama güvenlik için burada bırakılabilir.
+        return const SizedBox.shrink();
       case 'none':
       default:
         return ElevatedButton(
@@ -232,6 +236,7 @@ class _ContactScreenState extends State<ContactScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // --- HEADER VE ARAMA ÇUBUĞU (DEĞİŞİKLİK YOK) ---
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
@@ -240,7 +245,7 @@ class _ContactScreenState extends State<ContactScreen> {
               child: Row(
                 children: [
                   Text(
-                    'addNewContact'.tr, // <-- DEĞİŞTİ
+                    'addNewContact'.tr,
                     style: TextStyle(
                       color: cs.primary,
                       fontSize: 30,
@@ -256,7 +261,7 @@ class _ContactScreenState extends State<ContactScreen> {
               child: TextField(
                 onChanged: _filterContacts,
                 decoration: InputDecoration(
-                  hintText: 'searchContactHint'.tr, // <-- DEĞİŞTİ
+                  hintText: 'searchContactHint'.tr,
                   prefixIcon: const Icon(Icons.search),
                   filled: true,
                   fillColor: cs.surfaceVariant,
@@ -287,7 +292,7 @@ class _ContactScreenState extends State<ContactScreen> {
                       ),
                     ),
                     child: Text(
-                      'requests'.tr, // <-- DEĞİŞTİ
+                      'requests'.tr,
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -299,74 +304,56 @@ class _ContactScreenState extends State<ContactScreen> {
                 ],
               ),
             ),
+            // --- GÜNCELLENEN LİSTE GÖRÜNÜMÜ ---
             Expanded(
-              child: filteredContacts.isEmpty && allContacts.isNotEmpty
-                  ? Center(child: Text('noContactsFound'.tr)) // <-- DEĞİŞTİ
-                  : (allContacts.isEmpty
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                              color: Color(0xFF2F4156),
-                            ),
-                          )
-                        : (() {
-                            final visibleContacts = filteredContacts
-                                .where(
-                                  (user) =>
-                                      friendshipStatus[user.uid] != 'friends',
-                                )
-                                .toList();
-                            if (visibleContacts.isEmpty) {
-                              return Center(
-                                child: Text(
-                                  'allUsersAreFriends'.tr, // <-- DEĞİŞTİ
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              );
-                            }
-                            return ListView.builder(
-                              itemCount: visibleContacts.length,
-                              itemBuilder: (context, index) {
-                                final UserModel user = visibleContacts[index];
-                                final profilePhotoUrl = user.profilePhotoUrl;
-                                return ListTile(
-                                  leading: CircleAvatar(
-                                    radius: 24,
-                                    backgroundImage:
-                                        (profilePhotoUrl != null &&
-                                            profilePhotoUrl.isNotEmpty)
-                                        ? (profilePhotoUrl.startsWith(
-                                                'data:image',
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF2F4156),
+                      ),
+                    )
+                  : (filteredContacts.isEmpty
+                        ? Center(child: Text('noContactsFound'.tr))
+                        : ListView.builder(
+                            itemCount: filteredContacts.length,
+                            itemBuilder: (context, index) {
+                              final UserModel user = filteredContacts[index];
+                              final profilePhotoUrl = user.profilePhotoUrl;
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  radius: 24,
+                                  backgroundImage:
+                                      (profilePhotoUrl != null &&
+                                          profilePhotoUrl.isNotEmpty)
+                                      ? (profilePhotoUrl.startsWith(
+                                              'data:image',
+                                            )
+                                            ? MemoryImage(
+                                                base64Decode(
+                                                  profilePhotoUrl
+                                                      .split(',')
+                                                      .last,
+                                                ),
                                               )
-                                              ? MemoryImage(
-                                                      base64Decode(
-                                                        profilePhotoUrl
-                                                            .split(',')
-                                                            .last,
-                                                      ),
-                                                    )
-                                                    as ImageProvider
-                                              : NetworkImage(profilePhotoUrl))
-                                        : null,
-                                    backgroundColor: const Color(0xFF2F4156),
-                                    child:
-                                        (profilePhotoUrl == null ||
-                                            profilePhotoUrl.isEmpty)
-                                        ? const Icon(
-                                            Icons.person,
-                                            color: Colors.white,
-                                            size: 24,
-                                          )
-                                        : null,
-                                  ),
-                                  title: Text(user.username!),
-                                  trailing: _buildActionButton(user),
-                                );
-                              },
-                            );
-                          })()),
+                                            : NetworkImage(profilePhotoUrl)
+                                                  as ImageProvider)
+                                      : null,
+                                  backgroundColor: Color(0xFF2F4156),
+                                  child:
+                                      (profilePhotoUrl == null ||
+                                          profilePhotoUrl.isEmpty)
+                                      ? const Icon(
+                                          Icons.person,
+                                          color: Colors.white,
+                                          size: 24,
+                                        )
+                                      : null,
+                                ),
+                                title: Text(user.username!),
+                                trailing: _buildActionButton(user),
+                              );
+                            },
+                          )),
             ),
           ],
         ),
