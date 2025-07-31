@@ -1,19 +1,18 @@
-import 'package:chatly/models/message_model.dart';
-import 'package:chatly/services/message_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:chatly/services/storage_service.dart'; // Import StorageService
-import 'dart:convert'; // For base64
-import 'package:image_picker/image_picker.dart'; // Import image_picker
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:async';
-
-import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-
+import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:chatly/services/socket_service.dart';
+
+import 'package:chatly/models/message_model.dart';
 import 'package:chatly/screens/full_image_view.dart';
+import 'package:chatly/services/message_service.dart';
+import 'package:chatly/services/socket_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final String otherUserId;
@@ -34,62 +33,33 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  String _formatLastSeen(Timestamp? lastSeen) {
-    if (lastSeen == null) return 'offline';
-    final now = DateTime.now();
-    final lastSeenDateTime = lastSeen.toDate();
-    final difference = now.difference(lastSeenDateTime);
-
-    if (difference.inMinutes < 1) {
-      return 'last seen just now';
-    } else if (difference.inHours < 1) {
-      return 'last seen ${difference.inMinutes} minutes ago';
-    } else if (difference.inDays < 1) {
-      return 'last seen at ${DateFormat.Hm().format(lastSeenDateTime)}';
-    } else {
-      return 'last seen on ${DateFormat.yMd().format(lastSeenDateTime)}';
-    }
-  }
-
   final SocketService _socketService = SocketService();
+  final TextEditingController _controller = TextEditingController();
+  final MessageService _messageService = MessageService();
+  final String _currentUserId = FirebaseAuth.instance.currentUser!.uid;
+  late final String _chatId;
+
   bool _isOtherUserTyping = false;
   StreamSubscription? _socketSubscription;
   Timer? _typingTimer;
   StreamSubscription<List<MessageModel>>? _messagesSubscription;
-  
-
-  final TextEditingController _controller = TextEditingController();
-  final MessageService _messageService = MessageService();
-  final StorageService _storageService =
-      StorageService(); // Add StorageService instance
-  final String _currentUserId = FirebaseAuth.instance.currentUser!.uid;
-  late final String _chatId;
 
   @override
   void initState() {
     super.initState();
     List<String> ids = [_currentUserId, widget.otherUserId];
     ids.sort();
-    _chatId = ids.join('_'); // <- yazım düzeltildi (tema dışı, crash önleme)
-
+    _chatId = ids.join('_');
     _listenAndMarkMessagesAsSeen();
 
     _socketSubscription = _socketService.events.listen((event) {
       if (event['type'] == 'typing' &&
           event['payload']['chatId'] == _chatId &&
           event['payload']['userId'] != _currentUserId) {
-        if (mounted) {
-          setState(() {
-            _isOtherUserTyping = true;
-          });
-        }
+        if (mounted) setState(() => _isOtherUserTyping = true);
         _typingTimer?.cancel();
         _typingTimer = Timer(const Duration(seconds: 2), () {
-          if (mounted) {
-            setState(() {
-              _isOtherUserTyping = false;
-            });
-          }
+          if (mounted) setState(() => _isOtherUserTyping = false);
         });
       }
     });
@@ -100,8 +70,28 @@ class _ChatScreenState extends State<ChatScreen> {
     _socketSubscription?.cancel();
     _typingTimer?.cancel();
     _messagesSubscription?.cancel();
-  _controller.dispose();
+    _controller.dispose();
     super.dispose();
+  }
+
+  String _formatLastSeen(Timestamp? lastSeen) {
+    if (lastSeen == null) return 'statusOffline'.tr;
+    final now = DateTime.now();
+    final lastSeenDateTime = lastSeen.toDate();
+    final difference = now.difference(lastSeenDateTime);
+
+    if (difference.inMinutes < 1) return 'lastSeenNow'.tr;
+    if (difference.inHours < 1)
+      return 'lastSeenMinutes'.trParams({
+        'minutes': difference.inMinutes.toString(),
+      });
+    if (difference.inDays < 1)
+      return 'lastSeenAt'.trParams({
+        'time': DateFormat.Hm().format(lastSeenDateTime),
+      });
+    return 'lastSeenOn'.trParams({
+      'date': DateFormat.yMd().format(lastSeenDateTime),
+    });
   }
 
   void _onTyping() {
@@ -114,35 +104,21 @@ class _ChatScreenState extends State<ChatScreen> {
   void _sendMessage() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
-
     _messageService.sendMessage(
       chatId: _chatId,
       senderId: _currentUserId,
       otherUserId: widget.otherUserId,
       text: text,
-      type: 'text', // Specify message type as text
+      type: 'text',
     );
     _controller.clear();
   }
 
   void _listenAndMarkMessagesAsSeen() {
     _messagesSubscription?.cancel();
-    _messagesSubscription = _messageService.getMessagesStream(_chatId).listen((messages){
-      for(final message in messages){
-        if(message.senderId!=_currentUserId && !message.seenBy.contains(_currentUserId)){
-          _messageService.markMessageAsSeen(
-            chatId: _chatId,
-            messageId: message.id,
-            userId: _currentUserId,
-          );
-        }
-      }
-    });
-  }
-
-  // Fallback one-shot call in case listener attaches slightly late
-  void _markMessagesAsSeen() {
-    _messageService.getMessagesStream(_chatId).first.then((messages) {
+    _messagesSubscription = _messageService.getMessagesStream(_chatId).listen((
+      messages,
+    ) {
       for (final message in messages) {
         if (message.senderId != _currentUserId &&
             !message.seenBy.contains(_currentUserId)) {
@@ -156,40 +132,77 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  void _sendImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        final ext = image.name.contains('.')
+            ? image.name.split('.').last
+            : 'jpg';
+        final dataUri = 'data:image/$ext;base64,${base64Encode(bytes)}';
 
-    // Balon renkleri: marka ikincil tonunu "benim mesajım" için kullanıyoruz.
-    final bubbleMe = isDark ? const Color(0xFFC8D9E6) : const Color(0xFF567C8D);
-    final onBubbleMe = cs.onSecondary;
-    final bubbleOther = cs.surface;
-    final onBubbleOther = cs.onSurface;
+        if (dataUri.length > 900000) {
+          Get.snackbar(
+            'error'.tr,
+            'imageTooLarge'.tr,
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red.shade600,
+            colorText: Colors.white,
+          );
+          return;
+        }
 
-    ImageProvider? _profileImageProvider(String url){
-    if(url.isEmpty){
-      return null;
+        _messageService.sendMessage(
+          chatId: _chatId,
+          senderId: _currentUserId,
+          otherUserId: widget.otherUserId,
+          imageUrl: dataUri,
+          type: 'image',
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        'error'.tr,
+        '${'imageSendError'.tr}: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+      );
     }
-    if(url.startsWith('data:image')){
-      try{
-        final bytes = base64Decode(url.split(',').last);
-        return MemoryImage(bytes);
-      }catch(_){
+  }
+
+  ImageProvider? _profileImageProvider(String url) {
+    if (url.isEmpty) return null;
+    if (url.startsWith('data:image')) {
+      try {
+        return MemoryImage(base64Decode(url.split(',').last));
+      } catch (_) {
         return null;
       }
     }
     return NetworkImage(url);
   }
 
-  return Scaffold(
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final bubbleMe = isDark ? const Color(0xFFC8D9E6) : const Color(0xFF567C8D);
+    final onBubbleMe = cs.onSecondary;
+    final bubbleOther = cs.surface;
+    final onBubbleOther = cs.onSurface;
+
+    return Scaffold(
       backgroundColor: cs.tertiary,
       appBar: AppBar(
         backgroundColor: cs.background,
         elevation: 0,
         leading: IconButton(
           icon: Icon(FontAwesomeIcons.chevronLeft, color: cs.primary),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Get.back(),
         ),
         title: StreamBuilder<DocumentSnapshot>(
           stream: FirebaseFirestore.instance
@@ -197,9 +210,7 @@ class _ChatScreenState extends State<ChatScreen> {
               .doc(widget.otherUserId)
               .snapshots(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const SizedBox(); // Loading state
-            }
+            if (!snapshot.hasData) return const SizedBox.shrink();
             final userData = snapshot.data!.data() as Map<String, dynamic>;
             final isOnline = userData['isOnline'] ?? false;
             final lastSeen = userData['lastSeen'] as Timestamp?;
@@ -209,22 +220,19 @@ class _ChatScreenState extends State<ChatScreen> {
                 GestureDetector(
                   onTap: () {
                     if (widget.profilePhotoUrl.isNotEmpty) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => FullImageView(
-                            imageUrl: widget.profilePhotoUrl,
-                          ),
-                        ),
+                      Get.to(
+                        () => FullImageView(imageUrl: widget.profilePhotoUrl),
                       );
                     }
                   },
                   child: CircleAvatar(
                     radius: 18,
-                    backgroundImage:
-                        _profileImageProvider(widget.profilePhotoUrl),
-                    backgroundColor:
-                        isDark ? Colors.grey[700] : Colors.grey[300],
+                    backgroundImage: _profileImageProvider(
+                      widget.profilePhotoUrl,
+                    ),
+                    backgroundColor: isDark
+                        ? Colors.grey[700]
+                        : Colors.grey[300],
                     child: widget.profilePhotoUrl.isEmpty
                         ? const Icon(Icons.person, size: 18)
                         : null,
@@ -244,14 +252,16 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                     Text(
                       _isOtherUserTyping
-                          ? 'typing...'
-                          : (isOnline ? 'online' : _formatLastSeen(lastSeen)),
+                          ? 'typing'.tr
+                          : (isOnline
+                                ? 'statusOnline'.tr
+                                : _formatLastSeen(lastSeen)),
                       style: TextStyle(
                         fontSize: 12,
                         fontStyle: _isOtherUserTyping
                             ? FontStyle.italic
                             : FontStyle.normal,
-                        color: cs.secondary, // durum rengi (marka uyumlu)
+                        color: cs.secondary,
                       ),
                     ),
                   ],
@@ -263,6 +273,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
+          // *** SORUNUN ÇÖZÜLDÜĞÜ YER: Expanded widget'ı eklendi. ***
           Expanded(
             child: StreamBuilder<List<MessageModel>>(
               stream: _messageService.getMessagesStream(_chatId),
@@ -271,161 +282,131 @@ class _ChatScreenState extends State<ChatScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
+                  return Center(
+                    child: Text(
+                      'error'.trParams({'error': snapshot.error.toString()}),
+                    ),
+                  );
                 }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('Say hi!'));
+                  return Center(child: Text('sayHi'.tr));
                 }
 
                 final messages = snapshot.data!;
-                return Column(
-                  children: [
-                    if (_isOtherUserTyping)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8.0, bottom: 6),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            "${widget.username} is typing...",
-                            style: TextStyle(
-                              fontStyle: FontStyle.italic,
-                              color: cs.onSurfaceVariant,
-                            ),
+                return ListView.builder(
+                  reverse: true,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    final bool isMe = message.senderId == _currentUserId;
+
+                    if (!isMe && !message.seenBy.contains(_currentUserId)) {
+                      _messageService.markMessageAsSeen(
+                        chatId: _chatId,
+                        messageId: message.id,
+                        userId: _currentUserId,
+                      );
+                    }
+                    final bool seen = message.seenBy.contains(
+                      widget.otherUserId,
+                    );
+
+                    Widget messageContent;
+                    if (message.type == 'image' && message.imageUrl != null) {
+                      Widget imageWidget;
+                      if (message.imageUrl!.startsWith('data:image')) {
+                        imageWidget = Image.memory(
+                          base64Decode(message.imageUrl!.split(',').last),
+                          width: 180,
+                          fit: BoxFit.cover,
+                        );
+                      } else {
+                        imageWidget = Image.network(
+                          message.imageUrl!,
+                          width: 180,
+                          fit: BoxFit.cover,
+                        );
+                      }
+                      messageContent = GestureDetector(
+                        onTap: () => Get.to(
+                          () => FullImageView(imageUrl: message.imageUrl!),
+                        ),
+                        child: imageWidget,
+                      );
+                    } else {
+                      messageContent = Text(
+                        message.text ?? '',
+                        style: TextStyle(
+                          color: isMe ? onBubbleMe : onBubbleOther,
+                          fontSize: 16,
+                        ),
+                      );
+                    }
+
+                    return Align(
+                      alignment: isMe
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: Container(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.7,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isMe ? bubbleMe : bubbleOther,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(isMe ? 12 : 0),
+                            topRight: Radius.circular(isMe ? 0 : 12),
+                            bottomLeft: const Radius.circular(12),
+                            bottomRight: const Radius.circular(12),
                           ),
                         ),
-                      ),
-                    Expanded(
-                      child: ListView.builder(
-                        reverse: true,
-                        padding: const EdgeInsets.all(16),
-                        itemCount: messages.length,
-                        itemBuilder: (context, index) {
-                          final message = messages[index];
-                          final bool isMe = message.senderId == _currentUserId;
-                          // Eğer bu kullanıcı için daha önce görülmediyse hemen işaretle
-                          if (!isMe && !message.seenBy.contains(_currentUserId)) {
-                            _messageService.markMessageAsSeen(
-                              chatId: _chatId,
-                              messageId: message.id,
-                              userId: _currentUserId,
-                            );
-                          }
-                          final bool seen = message.seenBy.contains(widget.otherUserId);
-
-                          Widget messageContent;
-                          if (message.type == 'image' && message.imageUrl != null) {
-                            Widget imageWidget;
-                            if (message.imageUrl!.startsWith('data:image')) {
-                              // base64 image
-                              final base64Str = message.imageUrl!.split(',').last;
-                              imageWidget = Image.memory(
-                                base64Decode(base64Str),
-                                width: 180,
-                                fit: BoxFit.cover,
-                              );
-                            } else if (message.imageUrl!.startsWith('http')) {
-                              // network image
-                              imageWidget = Image.network(
-                                message.imageUrl!,
-                                width: 180,
-                                fit: BoxFit.cover,
-                              );
-                            } else {
-                              imageWidget = const Icon(Icons.broken_image, size: 40, color: Colors.red);
-                            }
-
-                            // Wrap with tap-to-fullscreen if valid image
-                            if (message.imageUrl!.startsWith('data:image') || message.imageUrl!.startsWith('http')) {
-                              messageContent = GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => FullImageView(imageUrl: message.imageUrl!),
-                                    ),
-                                  );
-                                },
-                                child: imageWidget,
-                              );
-                            } else {
-                              messageContent = imageWidget;
-                            }
-                          } else {
-                            // Handle text message
-                            messageContent = Text(
-                              message.text ?? '',
-                              style: TextStyle(
-                                color: isMe ? onBubbleMe : onBubbleOther,
-                                fontSize: 16,
-                              ),
-                            );
-                          }
-
-                          return Align(
-                            alignment: isMe
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
-                            child: Container(
-                              constraints: BoxConstraints(
-                                maxWidth:
-                                    MediaQuery.of(context).size.width * 0.7,
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              margin: const EdgeInsets.symmetric(vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isMe ? bubbleMe : bubbleOther,
-                                borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(isMe ? 12 : 0),
-                                  topRight: Radius.circular(isMe ? 0 : 12),
-                                  bottomLeft: const Radius.circular(12),
-                                  bottomRight: const Radius.circular(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: messageContent,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  DateFormat.Hm().format(
+                                    message.timestamp.toDate(),
+                                  ),
+                                  style: TextStyle(
+                                    color: (isMe ? onBubbleMe : onBubbleOther)
+                                        .withOpacity(0.7),
+                                    fontSize: 12,
+                                  ),
                                 ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  messageContent,
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        DateFormat.Hm().format(
-                                          message.timestamp.toDate(),
-                                        ),
-                                        style: TextStyle(
-                                          color:
-                                              (isMe
-                                                      ? onBubbleMe
-                                                      : onBubbleOther)
-                                                  .withOpacity(0.7),
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      if (isMe)
-                                        Icon(
-                                          seen ? Icons.done_all : Icons.check,
-                                          size: 16,
-                                          color: seen
-                                              ? (isDark
-                                                    ? Colors.blue[300]
-                                                    : Colors.blue[600])
-                                              : onBubbleMe.withOpacity(0.7),
-                                        ),
-                                    ],
+                                if (isMe) ...[
+                                  const SizedBox(width: 4),
+                                  Icon(
+                                    seen ? Icons.done_all : Icons.check,
+                                    size: 16,
+                                    color: seen
+                                        ? (isDark
+                                              ? Colors.blue[300]
+                                              : Colors.blue[600])
+                                        : onBubbleMe.withOpacity(0.7),
                                   ),
                                 ],
-                              ),
+                              ],
                             ),
-                          );
-                        },
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 );
               },
             ),
@@ -451,8 +432,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         controller: _controller,
                         onChanged: (_) => _onTyping(),
                         decoration: InputDecoration(
-                          hintText: "Type a message",
-
+                          hintText: 'typeMessageHint'.tr,
                           filled: true,
                           fillColor: cs.scrim,
                           contentPadding: const EdgeInsets.symmetric(
@@ -469,7 +449,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         color: Color(0xFF2F4156),
                       ),
@@ -486,46 +466,5 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
     );
-  }
-
-  void _sendImage() async {
-    print('1. _sendImage function called.');
-    try {
-      // Use image picker directly instead of storage service
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
-      if (image != null && image.path.isNotEmpty) {
-        print('2. Image picked successfully: ${image.path}');
-        print('3. Converting to base64...');
-        final bytes = await image.readAsBytes();
-        final ext =
-            image.name.contains('.') ? image.name.split('.').last : 'jpg';
-        final base64Str = base64Encode(bytes);
-        final dataUri = 'data:image/$ext;base64,$base64Str';
-        print('4. base64 length: ${dataUri.length}');
-
-        if (dataUri.length > 900000) {
-          print('Image too large for Firestore document.');
-          // Optionally, show a snackbar to the user
-          return;
-        }
-
-        print('5. Sending image message...');
-        _messageService.sendMessage(
-          chatId: _chatId,
-          senderId: _currentUserId,
-          otherUserId: widget.otherUserId,
-          imageUrl: dataUri,
-          type: 'image',
-        );
-        print('6. Image message sent.');
-      } else {
-        print('Image picking cancelled or failed.');
-      }
-    } catch (e) {
-      print('An error occurred in _sendImage: $e');
-      // Optionally, show an error message to the user
-    }
   }
 }

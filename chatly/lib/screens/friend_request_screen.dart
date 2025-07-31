@@ -3,6 +3,7 @@ import 'package:chatly/services/friendship_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:get/get.dart'; // <-- EKLENDİ
 
 class FriendRequestScreen extends StatefulWidget {
   const FriendRequestScreen({super.key});
@@ -23,8 +24,11 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
   }
 
   void _loadFriendRequests() {
-    _friendRequestsFuture = _friendshipService
-        .getIncomingPendingFriendRequestsAsUsers(currentUserId);
+    setState(() {
+      // setState ile future'ı güncelleyerek yeniden çizim tetiklenir
+      _friendRequestsFuture = _friendshipService
+          .getIncomingPendingFriendRequestsAsUsers(currentUserId);
+    });
   }
 
   @override
@@ -34,7 +38,7 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Requests',
+          'requestsTitle'.tr, // <-- DEĞİŞTİ
           style: TextStyle(
             color: cs.onBackground,
             fontSize: 30,
@@ -42,7 +46,6 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
           ),
         ),
         centerTitle: false,
-        // Arka/ön renkleri tema yönetsin; sabitleme yok.
         elevation: 0,
         automaticallyImplyLeading: true,
       ),
@@ -53,7 +56,11 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(
+              child: Text(
+                'error'.trParams({'error': snapshot.error.toString()}),
+              ),
+            ); // <-- DEĞİŞTİ
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return Center(
@@ -67,7 +74,7 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'No friend requests',
+                    'noFriendRequests'.tr, // <-- DEĞİŞTİ
                     style: TextStyle(fontSize: 18, color: cs.onSurfaceVariant),
                   ),
                 ],
@@ -85,6 +92,8 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
               Widget leadingAvatar;
               if (user.profilePhotoUrl != null &&
                   user.profilePhotoUrl!.isNotEmpty) {
+                // Burada da UserAvatar widget'ını kullanmak tutarlılık sağlar.
+                // Eğer import ederseniz: leading: UserAvatar(user: user),
                 leadingAvatar = CircleAvatar(
                   backgroundImage: NetworkImage(user.profilePhotoUrl!),
                 );
@@ -100,36 +109,30 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
 
               return ListTile(
                 leading: leadingAvatar,
-                title: Text(user.username ?? 'No Name'),
+                title: Text(user.username ?? 'unknownUser'.tr), // <-- DEĞİŞTİ
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
                       icon: const Icon(Icons.check, color: Colors.green),
                       onPressed: () async {
-                        if (user.uid != null) {
-                          await _friendshipService.acceptFriendRequest(
-                            user.uid,
-                            currentUserId,
-                          );
-                          setState(() {
-                            _loadFriendRequests();
-                          });
-                        }
+                        // user.uid null kontrolü gereksiz çünkü stream'den gelen user'ların uid'si var.
+                        await _friendshipService.acceptFriendRequest(
+                          user.uid,
+                          currentUserId,
+                        );
+                        _loadFriendRequests(); // Listeyi yenile
                       },
                     ),
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.red),
                       onPressed: () async {
-                        if (user.uid != null) {
-                          await _friendshipService.declineFriendRequest(
-                            user.uid,
-                            currentUserId,
-                          );
-                          setState(() {
-                            _loadFriendRequests();
-                          });
-                        }
+                        await _friendshipService.declineFriendRequest(
+                          user.uid,
+                          currentUserId,
+                        );
+
+                        _loadFriendRequests(); // Listeyi yenile
                       },
                     ),
                   ],

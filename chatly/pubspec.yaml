@@ -48,6 +48,8 @@ dependencies:
   web_socket_channel: ^3.0.3
   image_picker: ^1.1.2
   firebase_storage: ^13.0.0
+  get: ^4.7.2
+  get_storage: ^2.1.1
 
 dev_dependencies:
   flutter_test:
