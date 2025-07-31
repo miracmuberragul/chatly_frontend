@@ -28,6 +28,7 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  flutter_native_splash: ^2.4.0
   intl: ^0.20.2
   flutter:
     sdk: flutter
@@ -105,3 +106,19 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+  
+flutter_native_splash:
+  android: true
+  ios: true
+  web: false
+
+  # Tüm modlarda siyah arka plan
+  color: "#000000"
+  color_dark: "#000000"
+
+  # Android 12+ ikon zorunlu → şeffaf PNG veriyoruz, görünmez olur
+  android_12:
+    color: "#000000"
+    image: assets/splash/transparent.png
+    color_dark: "#000000"
+    image_dark: assets/splash/transparent.png
