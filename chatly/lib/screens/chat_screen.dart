@@ -55,6 +55,8 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isOtherUserTyping = false;
   StreamSubscription? _socketSubscription;
   Timer? _typingTimer;
+  StreamSubscription<List<MessageModel>>? _messagesSubscription;
+  
 
   final TextEditingController _controller = TextEditingController();
   final MessageService _messageService = MessageService();
@@ -70,7 +72,7 @@ class _ChatScreenState extends State<ChatScreen> {
     ids.sort();
     _chatId = ids.join('_'); // <- yazım düzeltildi (tema dışı, crash önleme)
 
-    _markMessagesAsSeen();
+    _listenAndMarkMessagesAsSeen();
 
     _socketSubscription = _socketService.events.listen((event) {
       if (event['type'] == 'typing' &&
@@ -97,7 +99,8 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _socketSubscription?.cancel();
     _typingTimer?.cancel();
-    _controller.dispose();
+    _messagesSubscription?.cancel();
+  _controller.dispose();
     super.dispose();
   }
 
@@ -122,6 +125,22 @@ class _ChatScreenState extends State<ChatScreen> {
     _controller.clear();
   }
 
+  void _listenAndMarkMessagesAsSeen() {
+    _messagesSubscription?.cancel();
+    _messagesSubscription = _messageService.getMessagesStream(_chatId).listen((messages){
+      for(final message in messages){
+        if(message.senderId!=_currentUserId && !message.seenBy.contains(_currentUserId)){
+          _messageService.markMessageAsSeen(
+            chatId: _chatId,
+            messageId: message.id,
+            userId: _currentUserId,
+          );
+        }
+      }
+    });
+  }
+
+  // Fallback one-shot call in case listener attaches slightly late
   void _markMessagesAsSeen() {
     _messageService.getMessagesStream(_chatId).first.then((messages) {
       for (final message in messages) {
@@ -277,13 +296,21 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     Expanded(
                       child: ListView.builder(
-                        reverse: true, // en yeni altta
+                        reverse: true,
                         padding: const EdgeInsets.all(16),
                         itemCount: messages.length,
                         itemBuilder: (context, index) {
                           final message = messages[index];
                           final bool isMe = message.senderId == _currentUserId;
-                          final bool seen = message.seenBy.length > 1;
+                          // Eğer bu kullanıcı için daha önce görülmediyse hemen işaretle
+                          if (!isMe && !message.seenBy.contains(_currentUserId)) {
+                            _messageService.markMessageAsSeen(
+                              chatId: _chatId,
+                              messageId: message.id,
+                              userId: _currentUserId,
+                            );
+                          }
+                          final bool seen = message.seenBy.contains(widget.otherUserId);
 
                           Widget messageContent;
                           if (message.type == 'image' && message.imageUrl != null) {
