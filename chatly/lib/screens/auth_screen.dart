@@ -145,16 +145,15 @@ class _AuthScreenState extends State<AuthScreen> {
 
                   const SizedBox(height: 24),
 
-                   // Social Login Buttons
-                  _socialLoginButton(
-                    context: context,
-                    logoPath:
-                        'assets/images/google.png', // Ensure this path is correct and image is in pubspec.yaml
-                    label: 'Sign in with Google',
-                    onTap: () {
-                      _authPage.signInWithGoogle(context);
-                    },
-                  ),
+                  if (Platform.isAndroid)
+            _socialLoginButton(
+              context: context,
+              logoPath: 'assets/images/google.png',
+              label: 'Sign in with Google',
+              onTap: () {
+                // _authPage.signInWithGoogle(context);
+      },
+      ),
 
                   // Add more social login buttons here if needed (e.g., Apple, Facebook)
                   // const SizedBox(height: 16),

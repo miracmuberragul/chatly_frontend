@@ -9,6 +9,7 @@ import 'theme/theme_controller.dart';
 import 'package:chatly/screens/splash_screen.dart';
 import 'package:chatly/screens/home_page.dart';
 import 'package:chatly/screens/auth_screen.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

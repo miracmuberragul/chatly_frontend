@@ -21,83 +21,75 @@ class AuthPage {
   /// Başarılı olursa Firebase'e kaydeder veya mevcut kullanıcıyı doğrular.
   Future<void> signInWithGoogle(BuildContext context) async {
     try {
-      // GoogleSignIn.instance yerine _googleSignIn kullanıldı
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
-      // Eğer googleUser null ise, kullanıcı oturum açma işlemini iptal etmiştir.
       if (googleUser == null) {
         debugPrint(
           'Google oturum açma işlemi kullanıcı tarafından iptal edildi.',
         );
-        return; // İşlemi sonlandır.
+        return;
       }
 
-      // Google kullanıcısının kimlik doğrulama bilgilerini (token'lar) al.
       final googleAuth = await googleUser.authentication;
-
-      // Google kimlik bilgileriyle Firebase için bir kimlik doğrulama kimlik bilgisi (credential) oluştur.
-      // accessToken ve idToken, GoogleSignInAuthentication nesnesinden alınır.
       final credential = GoogleAuthProvider.credential(
-        accessToken:
-            googleAuth.accessToken, // Google API'lerine erişim için token
-        idToken: googleAuth.idToken, // Kullanıcının kimliğini doğrulayan token
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
 
-      // Bu kimlik bilgisiyle Firebase'de oturum aç.
       final userCredential = await FirebaseAuth.instance.signInWithCredential(
         credential,
       );
-      final user =
-          userCredential.user; // Oturum açan Firebase kullanıcısını al.
+      final user = userCredential.user;
 
-      // Eğer bir kullanıcı nesnesi varsa (oturum başarıyla açıldıysa)
       if (user != null) {
-        userId = user.uid; // Kullanıcının UID'sini userId değişkenine ata.
+        userId = user.uid;
 
-        // Kullanıcı dokümanına referans al (Firestore'daki 'users' koleksiyonunda).
         final userDoc = FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid);
-        final snapshot = await userDoc
-            .get(); // Kullanıcı dokümanının anlık görüntüsünü al.
+        final snapshot = await userDoc.get();
 
-        // Kullanıcı Firestore'a daha önce kaydedilmediyse kaydet.
         if (!snapshot.exists) {
+          // Kullanıcı Firestore'a daha önce kaydedilmediyse (YENİ KULLANICI)
           await userDoc.set({
-            'uid': user.uid, // Kullanıcının UID'si
-            'name': user.displayName, // Kullanıcının görünen adı
-            'email': user.email, // Kullanıcının e-posta adresi
-            'createdAt':
-                FieldValue.serverTimestamp(), // Kayıt tarihi (sunucu zaman damgası)
+            'uid': user.uid,
+            'name': user.displayName,
+            'email': user.email,
+            'createdAt': FieldValue.serverTimestamp(),
           });
           debugPrint('Yeni kullanıcı Firestore\'a kaydedildi: ${user.email}');
         } else {
-          debugPrint('Kullanıcı zaten Firestore\'da mevcut: ${user.email}');
+          // Kullanıcı zaten Firestore'da mevcut (MEVCUT KULLANICI GİRİŞİ)
+          debugPrint('Mevcut kullanıcı Google ile giriş yaptı: ${user.email}');
         }
+
+        // --- ÇÖZÜM: BAŞARILI GİRİŞ SONRASI YÖNLENDİRME ---
+        // Hem yeni kullanıcı hem de mevcut kullanıcı için, işlem başarılı olduğunda
+        // ana sayfaya yönlendir.
+        if (context.mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+        // ----------------------------------------------------
       }
     } on FirebaseAuthException catch (e) {
-      // Firebase kimlik doğrulama hatalarını yakala.
       debugPrint('Firebase Kimlik Doğrulama Hatası: ${e.code} - ${e.message}');
       if (context.mounted) {
-        // Hata mesajını kullanıcıya göster.
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               'Oturum açma hatası: ${e.message ?? "Bir hata oluştu."}',
             ),
-            backgroundColor: Colors.red, // Hata için kırmızı arka plan
+            backgroundColor: Colors.red,
           ),
         );
       }
     } catch (e) {
-      // Diğer tüm Google Oturum Açma hatalarını yakala.
       log('Google Oturum Açma Genel Hatası: $e');
       if (context.mounted) {
-        // Genel hata mesajını kullanıcıya göster.
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Beklenmedik bir hata oluştu: ${e.toString()}'),
-            backgroundColor: Colors.red, // Hata için kırmızı arka plan
+            backgroundColor: Colors.red,
           ),
         );
       }
