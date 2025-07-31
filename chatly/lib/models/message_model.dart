@@ -36,6 +36,21 @@ class MessageModel {
     );
   }
 
+  // Factory constructor to create a MessageModel from a WebSocket event
+  factory MessageModel.fromWebSocket(Map<String, dynamic> data) {
+    return MessageModel(
+      id: '', // WebSocket messages don't have a Firestore ID initially
+      chatId: data['chatId'] ?? '',
+      senderId: data['senderId'] ?? '',
+      text: data['text'],
+      // Parse the ISO 8601 string timestamp from the event
+      timestamp: Timestamp.fromDate(DateTime.parse(data['timestamp'])),
+      seenBy: [], // Initially, a new message from socket hasn't been seen by anyone
+      type: data['type'] ?? 'text', // Default to 'text'
+      imageUrl: data['imageUrl'],
+    );
+  }
+
   // Method to convert a MessageModel instance to a map for Firestore
   Map<String, dynamic> toFirestore() {
     return {

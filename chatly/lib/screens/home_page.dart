@@ -1,4 +1,5 @@
 import 'package:chatly/services/user_service.dart';
+import 'package:chatly/services/socket_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -16,6 +17,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   int _selectedIndex = 1;
   final UserService _userService = UserService();
+  final SocketService _socketService = SocketService();
   final String? _userId = FirebaseAuth.instance.currentUser?.uid;
 
   final List<Widget> _pages = const [
@@ -29,12 +31,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _updateUserStatus(isOnline: true);
+    
+    // Initialize WebSocket connection when app starts
+    if (_userId != null) {
+      _socketService.connect(_userId!);
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _updateUserStatus(isOnline: false);
+    _socketService.dispose(); // Clean up WebSocket connection
     super.dispose();
   }
 

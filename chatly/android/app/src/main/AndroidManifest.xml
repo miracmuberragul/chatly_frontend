@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <application
+        android:usesCleartextTraffic="true"
         android:label="chatly"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">

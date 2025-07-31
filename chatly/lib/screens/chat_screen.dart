@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:chatly/services/storage_service.dart'; // Import StorageService
 import 'dart:convert'; // For base64
 import 'package:image_picker/image_picker.dart'; // Import image_picker
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 
@@ -34,6 +34,8 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  final ScrollController _scrollController = ScrollController();
+  DateTime? _lastTypingSent; // throttle typing events
   String _formatLastSeen(Timestamp? lastSeen) {
     if (lastSeen == null) return 'offline';
     final now = DateTime.now();
@@ -56,7 +58,6 @@ class _ChatScreenState extends State<ChatScreen> {
   StreamSubscription? _socketSubscription;
   Timer? _typingTimer;
   StreamSubscription<List<MessageModel>>? _messagesSubscription;
-  
 
   final TextEditingController _controller = TextEditingController();
   final MessageService _messageService = MessageService();
@@ -72,12 +73,19 @@ class _ChatScreenState extends State<ChatScreen> {
     ids.sort();
     _chatId = ids.join('_'); // <- yazım düzeltildi (tema dışı, crash önleme)
 
+    // Join the specific chat room (connection already established in home page)
+    _socketService.sendEvent('join_chat', {'chatId': _chatId});
+
     _listenAndMarkMessagesAsSeen();
 
     _socketSubscription = _socketService.events.listen((event) {
-      if (event['type'] == 'typing' &&
-          event['payload']['chatId'] == _chatId &&
-          event['payload']['userId'] != _currentUserId) {
+      print(
+        '📡 Socket event received: ${event['event']} - chatId: ${event['chatId']} - userId: ${event['userId']}',
+      );
+      if (event['event'] == 'typing' &&
+          event['chatId'] == _chatId &&
+          event['userId'] != _currentUserId) {
+        print('✅ Typing event matched - setting _isOtherUserTyping = true');
         if (mounted) {
           setState(() {
             _isOtherUserTyping = true;
@@ -85,36 +93,65 @@ class _ChatScreenState extends State<ChatScreen> {
         }
         _typingTimer?.cancel();
         _typingTimer = Timer(const Duration(seconds: 2), () {
+          print('⏰ Typing timer expired - setting _isOtherUserTyping = false');
           if (mounted) {
             setState(() {
               _isOtherUserTyping = false;
             });
           }
         });
+      } else if (event['event'] == 'chat_message' &&
+          event['chatId'] == _chatId) {
+        final message = MessageModel.fromWebSocket(event);
+        print('New message received via WebSocket: ${message.text}');
       }
     });
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _socketSubscription?.cancel();
     _typingTimer?.cancel();
     _messagesSubscription?.cancel();
-  _controller.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   void _onTyping() {
-    _socketService.sendEvent('typing', {
-      'chatId': _chatId,
-      'userId': _currentUserId,
-    });
+    print('🔤 _onTyping called');
+    final now = DateTime.now();
+    if (_lastTypingSent == null ||
+        now.difference(_lastTypingSent!) > const Duration(milliseconds: 500)) {
+      _lastTypingSent = now;
+      print(
+        '🔤 Sending typing event - chatId: $_chatId, userId: $_currentUserId',
+      );
+      _socketService.sendEvent('typing', {
+        'chatId': _chatId,
+        'userId': _currentUserId,
+      });
+    } else {
+      print('🔤 Typing throttled - too soon');
+    }
   }
 
   void _sendMessage() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
+    // The message data to be sent
+    final messageData = {
+      'chatId': _chatId,
+      'senderId': _currentUserId,
+      'text': text,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+
+    // Send message via WebSocket
+    _socketService.sendEvent('chat_message', messageData);
+
+    // Also save to Firestore for persistence
     _messageService.sendMessage(
       chatId: _chatId,
       senderId: _currentUserId,
@@ -122,14 +159,24 @@ class _ChatScreenState extends State<ChatScreen> {
       text: text,
       type: 'text', // Specify message type as text
     );
+
     _controller.clear();
+    // Scroll to bottom after sending a message
+    _scrollController.animateTo(
+      0.0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   void _listenAndMarkMessagesAsSeen() {
     _messagesSubscription?.cancel();
-    _messagesSubscription = _messageService.getMessagesStream(_chatId).listen((messages){
-      for(final message in messages){
-        if(message.senderId!=_currentUserId && !message.seenBy.contains(_currentUserId)){
+    _messagesSubscription = _messageService.getMessagesStream(_chatId).listen((
+      messages,
+    ) {
+      for (final message in messages) {
+        if (message.senderId != _currentUserId &&
+            !message.seenBy.contains(_currentUserId)) {
           _messageService.markMessageAsSeen(
             chatId: _chatId,
             messageId: message.id,
@@ -167,22 +214,22 @@ class _ChatScreenState extends State<ChatScreen> {
     final bubbleOther = cs.surface;
     final onBubbleOther = cs.onSurface;
 
-    ImageProvider? _profileImageProvider(String url){
-    if(url.isEmpty){
-      return null;
-    }
-    if(url.startsWith('data:image')){
-      try{
-        final bytes = base64Decode(url.split(',').last);
-        return MemoryImage(bytes);
-      }catch(_){
+    ImageProvider? _profileImageProvider(String url) {
+      if (url.isEmpty) {
         return null;
       }
+      if (url.startsWith('data:image')) {
+        try {
+          final bytes = base64Decode(url.split(',').last);
+          return MemoryImage(bytes);
+        } catch (_) {
+          return null;
+        }
+      }
+      return NetworkImage(url);
     }
-    return NetworkImage(url);
-  }
 
-  return Scaffold(
+    return Scaffold(
       backgroundColor: cs.tertiary,
       appBar: AppBar(
         backgroundColor: cs.background,
@@ -212,19 +259,20 @@ class _ChatScreenState extends State<ChatScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => FullImageView(
-                            imageUrl: widget.profilePhotoUrl,
-                          ),
+                          builder: (_) =>
+                              FullImageView(imageUrl: widget.profilePhotoUrl),
                         ),
                       );
                     }
                   },
                   child: CircleAvatar(
                     radius: 18,
-                    backgroundImage:
-                        _profileImageProvider(widget.profilePhotoUrl),
-                    backgroundColor:
-                        isDark ? Colors.grey[700] : Colors.grey[300],
+                    backgroundImage: _profileImageProvider(
+                      widget.profilePhotoUrl,
+                    ),
+                    backgroundColor: isDark
+                        ? Colors.grey[700]
+                        : Colors.grey[300],
                     child: widget.profilePhotoUrl.isEmpty
                         ? const Icon(Icons.person, size: 18)
                         : null,
@@ -296,6 +344,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     Expanded(
                       child: ListView.builder(
+                        controller: _scrollController,
                         reverse: true,
                         padding: const EdgeInsets.all(16),
                         itemCount: messages.length,
@@ -303,21 +352,27 @@ class _ChatScreenState extends State<ChatScreen> {
                           final message = messages[index];
                           final bool isMe = message.senderId == _currentUserId;
                           // Eğer bu kullanıcı için daha önce görülmediyse hemen işaretle
-                          if (!isMe && !message.seenBy.contains(_currentUserId)) {
+                          if (!isMe &&
+                              !message.seenBy.contains(_currentUserId)) {
                             _messageService.markMessageAsSeen(
                               chatId: _chatId,
                               messageId: message.id,
                               userId: _currentUserId,
                             );
                           }
-                          final bool seen = message.seenBy.contains(widget.otherUserId);
+                          final bool seen = message.seenBy.contains(
+                            widget.otherUserId,
+                          );
 
                           Widget messageContent;
-                          if (message.type == 'image' && message.imageUrl != null) {
+                          if (message.type == 'image' &&
+                              message.imageUrl != null) {
                             Widget imageWidget;
                             if (message.imageUrl!.startsWith('data:image')) {
                               // base64 image
-                              final base64Str = message.imageUrl!.split(',').last;
+                              final base64Str = message.imageUrl!
+                                  .split(',')
+                                  .last;
                               imageWidget = Image.memory(
                                 base64Decode(base64Str),
                                 width: 180,
@@ -331,17 +386,24 @@ class _ChatScreenState extends State<ChatScreen> {
                                 fit: BoxFit.cover,
                               );
                             } else {
-                              imageWidget = const Icon(Icons.broken_image, size: 40, color: Colors.red);
+                              imageWidget = const Icon(
+                                Icons.broken_image,
+                                size: 40,
+                                color: Colors.red,
+                              );
                             }
 
                             // Wrap with tap-to-fullscreen if valid image
-                            if (message.imageUrl!.startsWith('data:image') || message.imageUrl!.startsWith('http')) {
+                            if (message.imageUrl!.startsWith('data:image') ||
+                                message.imageUrl!.startsWith('http')) {
                               messageContent = GestureDetector(
                                 onTap: () {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => FullImageView(imageUrl: message.imageUrl!),
+                                      builder: (_) => FullImageView(
+                                        imageUrl: message.imageUrl!,
+                                      ),
                                     ),
                                   );
                                 },
@@ -499,8 +561,9 @@ class _ChatScreenState extends State<ChatScreen> {
         print('2. Image picked successfully: ${image.path}');
         print('3. Converting to base64...');
         final bytes = await image.readAsBytes();
-        final ext =
-            image.name.contains('.') ? image.name.split('.').last : 'jpg';
+        final ext = image.name.contains('.')
+            ? image.name.split('.').last
+            : 'jpg';
         final base64Str = base64Encode(bytes);
         final dataUri = 'data:image/$ext;base64,$base64Str';
         print('4. base64 length: ${dataUri.length}');
