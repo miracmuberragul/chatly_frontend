@@ -210,7 +210,9 @@ class _MessagesPageState extends State<MessagesPage> {
                                         }
                                       },
                                       child: CircleAvatar(
-                                        radius: 24,
+                                        // *** DEĞİŞİKLİK 1: Yarıçapı küçülttük ***
+                                        radius:
+                                            22, // Örneğin 22 (veya 20, 21) daha standart bir boyuttur.
                                         backgroundImage: profilePhoto.isNotEmpty
                                             ? (profilePhoto.startsWith(
                                                     'data:image',
@@ -230,7 +232,8 @@ class _MessagesPageState extends State<MessagesPage> {
                                             ? const Icon(
                                                 Icons.person,
                                                 color: Colors.white,
-                                                size: 24,
+                                                // *** DEĞİŞİKLİK 2: İkon boyutunu da yarıçapla uyumlu hale getirdik ***
+                                                size: 22,
                                               )
                                             : null,
                                       ),
@@ -263,12 +266,18 @@ class _MessagesPageState extends State<MessagesPage> {
                                   ),
                                 ),
                                 subtitle: Text(
-                                  chatData['lastMessage'] ?? '',
+                                  chatData['lastMessage'] != null
+                                      ? (chatData['lastMessage'].length > 30
+                                            ? '${chatData['lastMessage'].substring(0, 30)}...'
+                                            : chatData['lastMessage'])
+                                      : '',
                                   style: TextStyle(
                                     fontWeight: isUnread
                                         ? FontWeight.bold
                                         : FontWeight.normal,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                                 trailing: isUnread
                                     ? const Icon(
