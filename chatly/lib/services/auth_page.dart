@@ -56,6 +56,7 @@ class AuthPage {
             'name': user.displayName,
             'email': user.email,
             'createdAt': FieldValue.serverTimestamp(),
+            'username': user.email?.split('@')[0] ?? 'user_${user.uid}',
           });
           debugPrint('Yeni kullanıcı Firestore\'a kaydedildi: ${user.email}');
         } else {
