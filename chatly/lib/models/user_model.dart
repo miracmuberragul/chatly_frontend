@@ -5,6 +5,7 @@ class UserModel {
   final String username;
   final String email;
   final String? profilePhotoUrl;
+  final bool isOnline;
   final Timestamp? lastSeen;
   final List<String>? friends;
 
@@ -13,6 +14,7 @@ class UserModel {
     required this.username,
     required this.email,
     this.profilePhotoUrl,
+    this.isOnline = false,
     this.lastSeen,
     this.friends,
   });
@@ -20,9 +22,10 @@ class UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       uid: json['uid'] as String,
-      username: json['username'] as String,
+      username: json['username'] != null ? json['username'] as String : '',
       email: json['email'] as String,
       profilePhotoUrl: json['profilePhotoUrl'] as String?,
+      isOnline: json['isOnline'] as bool? ?? false,
       lastSeen: json['lastSeen'] as Timestamp?,
       friends: (json['friends'] as List<dynamic>?)
           ?.map((e) => e as String)
@@ -31,14 +34,14 @@ class UserModel {
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = {
+    return {
       'uid': uid,
       'username': username,
       'email': email,
       'profilePhotoUrl': profilePhotoUrl,
+      'isOnline': isOnline,
       'lastSeen': lastSeen,
       'friends': friends,
     };
-    return data;
   }
 }

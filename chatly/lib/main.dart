@@ -1,24 +1,57 @@
-import 'package:chatly/screens/home_page.dart';
-import 'package:chatly/screens/splash_screen.dart';
+// lib/main.dart (Sadece Dil için SharedPreferences Kullanılan Hali)
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:get/get.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // <-- EKLENDİ
 
-// Firebase yapılandırma dosyası. Bu dosya, `flutterfire configure` komutuyla otomatik olarak oluşturulur.
-// Projenizde yoksa veya güncel değilse bu komutu çalıştırmanız gerekir.
 import 'firebase_options.dart';
+import 'theme/app_theme.dart';
+import 'theme/theme_controller.dart';
+
+import 'l10n/translations.dart';
+import 'screens/splash_screen.dart';
+import 'screens/home_page.dart';
+import 'screens/auth_screen.dart';
+
+import 'package:chatly/screens/splash_screen.dart';
+import 'package:chatly/screens/home_page.dart';
+import 'package:chatly/screens/auth_screen.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
+
 
 void main() async {
-  // Flutter motorunun widget ağacını başlatmadan önce tüm binding'lerin
-  // (örneğin Firebase gibi) doğru şekilde başlatıldığından emin olun.
+  // Platform kanallarının hazır olmasını sağla.
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase'i uygulamanızla başlatın.
-  // `DefaultFirebaseOptions.currentPlatform` Firebase CLI tarafından oluşturulan
-  // platforma özel yapılandırma seçeneklerini kullanır.
+  // Asenkron servisleri başlat.
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Uygulamayı başlatın.
-  runApp(const MyApp());
+  runApp(const Bootstrap());
+}
+
+class Bootstrap extends StatelessWidget {
+  const Bootstrap({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // ThemeController'ı Provider ile sağlamaya devam ediyoruz. Bu kısım doğru.
+    return FutureBuilder<ThemeController>(
+      future:
+          ThemeController.init(), // Bu metodun SharedPreferences kullandığını varsayıyorum.
+      builder: (context, themeSnapshot) {
+        if (!themeSnapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final themeController = themeSnapshot.data!;
+        return ChangeNotifierProvider<ThemeController>.value(
+          value: themeController,
+          child: const MyApp(),
+        );
+      },
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -26,13 +59,52 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Chatly',
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const SplashScreen(),
-        '/home': (context) => const HomePage(),
+    // Tema yönetimi için Provider'ı dinlemeye devam et.
+    final themeController = context.watch<ThemeController>();
+
+    // Dili okumak için FutureBuilder kullanalım. Bu, en güvenli yöntemdir.
+    return FutureBuilder<SharedPreferences>(
+      future: SharedPreferences.getInstance(),
+      builder: (context, prefsSnapshot) {
+        // SharedPreferences yüklenene kadar bekleme ekranı göster.
+        if (!prefsSnapshot.hasData) {
+          return const MaterialApp(
+            home: Scaffold(body: Center(child: CircularProgressIndicator())),
+          );
+        }
+
+        // SharedPreferences yüklendiğinde dil ayarını oku.
+        final prefs = prefsSnapshot.data!;
+        final storedLanguageCode = prefs.getString('locale');
+
+        // Kaydedilmiş bir dil varsa onu, yoksa cihaz dilini veya İngilizce'yi kullan.
+        final Locale initialLocale = storedLanguageCode != null
+            ? Locale(storedLanguageCode)
+            : Get.deviceLocale ?? const Locale('en', 'US');
+
+        // GetMaterialApp'i bu bilgilerle oluştur.
+        return GetMaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Chatly',
+
+          // Tema Ayarları (Provider'dan geliyor, değişmedi)
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: themeController.mode,
+
+          // Dil Ayarları (SharedPreferences ve GetX ile)
+          translations: AppTranslations(),
+          locale: initialLocale,
+          fallbackLocale: const Locale('en', 'US'),
+
+          // Rota Ayarları
+          initialRoute: '/',
+          routes: {
+            '/': (context) => const SplashScreen(),
+            '/home': (context) => const HomePage(),
+            '/auth': (context) => const AuthScreen(),
+          },
+        );
       },
     );
   }
